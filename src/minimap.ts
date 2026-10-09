@@ -7,6 +7,12 @@ const METRES_PER_PX = 1.5;
 /** The route map shows at least this much ground, even for a short walk. */
 const ROUTE_MIN_SPAN_M = 260;
 const ROUTE_PADDING_PX = 72;
+/** The route draws itself on: a pause for the page to land, then the line. */
+const ROUTE_ANIM_DELAY_MS = 350;
+const ROUTE_ANIM_MIN_MS = 1200;
+const ROUTE_ANIM_MAX_MS = 2600;
+/** How long a marker takes to pop in once the line reaches it. */
+const POP_MS = 320;
 
 /** Colours match the CSS tokens in style.css. */
 const C = {
@@ -96,6 +102,9 @@ export class Minimap {
   private mapState: "none" | "loading" | "ready" | "failed" = "none";
   private loc: FoundLocation | null = null;
   private last: View | null = null;
+  /** The route animation's clock; set when the route view first appears. */
+  private anim: { start: number; duration: number } | null = null;
+  private raf = 0;
 
   constructor(private container: HTMLElement) {
     container.innerHTML = `
@@ -118,11 +127,15 @@ export class Minimap {
   }
 
   destroy() {
+    cancelAnimationFrame(this.raf);
     this.map?.remove();
     this.map = null;
   }
 
   draw(view: View) {
+    // Switching to the route view starts its animation; later redraws (a
+    // resize, the tiles arriving, dragging the photo) carry on from there.
+    if (view.mode === "route" && this.last?.mode !== "route") this.anim = null;
     this.last = view;
     if (!this.loc) return;
     const w = this.container.clientWidth;
@@ -141,6 +154,19 @@ export class Minimap {
     if (this.mapState !== "ready") this.drawExploredStreets(P);
     if (view.mode === "follow") this.drawFollow(view, P, w, h);
     else this.drawRoute(view, P, w, h);
+  }
+
+  /** One animation frame: same camera, just redraw what's on top. */
+  private redrawRoute() {
+    const view = this.last as RouteView;
+    const w = this.container.clientWidth;
+    const h = this.container.clientHeight;
+    if (!w || !h || !this.loc) return;
+    const { centre, mPerPx } = this.routeFit(view, w, h);
+    const P: Project = (p) => this.project(p, centre, mPerPx, w, h);
+    this.ctx.clearRect(0, 0, w, h);
+    if (this.mapState !== "ready") this.drawExploredStreets(P);
+    this.drawRoute(view, P, w, h);
   }
 
   /** Centre and scale that fit the whole walk, the start and the claim. */
@@ -321,26 +347,109 @@ export class Minimap {
   }
 
   private drawRoute(view: RouteView, P: Project, w: number, h: number) {
+    const ctx = this.ctx;
+    const pts = view.trail.map(P);
+    // Cumulative length along the drawn line, so things can appear in step.
+    const along = [0];
+    for (let i = 1; i < pts.length; i++) {
+      along.push(along[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
+    }
+    const total = along[along.length - 1] || 0;
+
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const now = performance.now();
+    if (!this.anim) {
+      this.anim = {
+        start: now + ROUTE_ANIM_DELAY_MS,
+        duration: reduced ? 0 : Math.min(ROUTE_ANIM_MAX_MS, Math.max(ROUTE_ANIM_MIN_MS, 800 + total * 3)),
+      };
+    }
+    const elapsed = now - this.anim.start;
+    const t = this.anim.duration ? Math.min(1, Math.max(0, elapsed / this.anim.duration)) : 1;
+    const drawnTo = easeInOutCubic(t) * total;
+    // When (in ms since the line started) the line reaches a point.
+    const reachedAt = (p: LatLng) => {
+      if (!total || !this.anim!.duration) return 0;
+      const q = P(p);
+      let best = 0;
+      let bestD = Infinity;
+      pts.forEach((pt, i) => {
+        const d = Math.hypot(pt.x - q.x, pt.y - q.y);
+        if (d < bestD) [bestD, best] = [d, i];
+      });
+      return inverseEase(along[best] / total) * this.anim!.duration;
+    };
+    // 0..1 pop-in for something the line reached at `at` ms.
+    const pop = (at: number) => (reduced ? 1 : easeOutBack(Math.min(1, Math.max(0, (elapsed - at) / POP_MS))));
+
     const passed = new Set(view.passed);
     this.drawBars(this.loc!.bars.filter((b) => !passed.has(b)), P, w, h, C.barFaint, 3.5);
-    this.drawTrail(view.trail, P, 4);
+
+    // The walk so far, cut off exactly where the animation has got to.
+    if (pts.length > 1 && drawnTo > 0) {
+      ctx.strokeStyle = C.trail;
+      ctx.lineWidth = 4;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) {
+        if (along[i] <= drawnTo) {
+          ctx.lineTo(pts[i].x, pts[i].y);
+          continue;
+        }
+        const f = (drawnTo - along[i - 1]) / (along[i] - along[i - 1] || 1);
+        ctx.lineTo(pts[i - 1].x + (pts[i].x - pts[i - 1].x) * f, pts[i - 1].y + (pts[i].y - pts[i - 1].y) * f);
+        break;
+      }
+      ctx.stroke();
+      // A bright head on the growing line.
+      if (t < 1) {
+        const head = pointAt(pts, along, drawnTo);
+        this.dot(head.x, head.y, C.trail, 4);
+      }
+    }
+
     const start = this.drawStart(P);
     const claimAt = view.claim ? P(view.claim) : null;
     // Claimed without moving: the claim label says it all.
     if (!claimAt || Math.hypot(claimAt.x - start.x, claimAt.y - start.y) > 24) {
       this.label("start", start.x, start.y + 16, C.start);
     }
-    this.drawBars(view.passed, P, w, h, C.bar, 6);
-    for (const bar of view.passed.slice(0, 8)) {
+
+    // Each bar they passed pops in as the line goes by it.
+    for (const [i, bar] of view.passed.entries()) {
+      const s = pop(reachedAt(bar));
+      if (s <= 0) continue;
       const p = P(bar);
-      this.label(bar.name, p.x, p.y - 14, C.label);
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, s);
+      ctx.fillStyle = C.bar;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 6 * s, 0, Math.PI * 2);
+      ctx.fill();
+      if (i < 8) this.label(bar.name, p.x, p.y - 14, C.label);
+      ctx.restore();
     }
-    if (view.claim) {
-      const c = P(view.claim);
-      this.dot(c.x, c.y, C.me, 7);
-      this.label("you said bar", c.x, c.y + 18, C.me);
+
+    if (view.claim && claimAt) {
+      const s = pop(reachedAt(view.claim));
+      if (s > 0) {
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, s);
+        this.dot(claimAt.x, claimAt.y, C.me, 7 * s);
+        this.label("you said bar", claimAt.x, claimAt.y + 18, C.me);
+        ctx.restore();
+      }
     }
     this.drawNorth(w);
+
+    // Keep going until the line and the last pop-in have finished.
+    const lastPop = Math.max(0, ...view.passed.map(reachedAt), view.claim ? reachedAt(view.claim) : 0) + POP_MS;
+    if (!reduced && elapsed < Math.max(this.anim.duration, lastPop)) {
+      cancelAnimationFrame(this.raf);
+      this.raf = requestAnimationFrame(() => this.last?.mode === "route" && this.redrawRoute());
+    }
   }
 
   private dot(x: number, y: number, fill: string, r = 6) {
@@ -375,4 +484,37 @@ export class Minimap {
  */
 function zoomFor(lat: number, mPerPx: number): number {
   return Math.log2((78_271.517 * Math.cos((lat * Math.PI) / 180)) / mPerPx);
+}
+
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+}
+
+/** The time (0..1) at which easeInOutCubic reaches `y`, by bisection. */
+function inverseEase(y: number): number {
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 20; i++) {
+    const mid = (lo + hi) / 2;
+    if (easeInOutCubic(mid) < y) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+/** Overshoots a touch, then settles: a little pop. */
+function easeOutBack(t: number): number {
+  const c = 1.70158;
+  return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2;
+}
+
+/** The point `dist` pixels along a polyline. */
+function pointAt(pts: { x: number; y: number }[], along: number[], dist: number) {
+  for (let i = 1; i < pts.length; i++) {
+    if (along[i] >= dist) {
+      const f = (dist - along[i - 1]) / (along[i] - along[i - 1] || 1);
+      return { x: pts[i - 1].x + (pts[i].x - pts[i - 1].x) * f, y: pts[i - 1].y + (pts[i].y - pts[i - 1].y) * f };
+    }
+  }
+  return pts[pts.length - 1];
 }
