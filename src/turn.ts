@@ -9,12 +9,17 @@ import {
   type LatLng,
 } from "./streetview";
 import { describeScripts, type DropSpec } from "./difficulty";
-import { nearestBar } from "./bars";
+import { nearestBar, type Bar } from "./bars";
 import { Minimap } from "./minimap";
 import { formatTime, type TurnResult } from "./state";
 import { esc } from "./util";
 
 type Btn = "bar" | "drink";
+
+/** A bar this close to the route counts as one they walked past. */
+const PASSED_M = 35;
+/** A bar this close to where they pressed BAR FOUND is the one they picked. */
+const CLAIMED_M = 40;
 
 const BAR_HINT = "click when you spot one";
 const DRINK_HINT = "click when your glass is empty";
@@ -67,8 +72,15 @@ export class Turn {
     position: LatLng;
     atMs: number;
   } | null = null;
-  /** After the turn: the claim on show, then the city reveal. */
-  private stage: "playing" | "exhibit" | "reveal" = "playing";
+  /** "results" once the turn is over and the results page is showing. */
+  private stage: "playing" | "results" = "playing";
+  /** Bars near the route, worked out once for the results page. */
+  private passed: Bar[] = [];
+  /** Redraws the results page's map and photo when the window changes size. */
+  private onResize = () => {
+    if (this.pano) google.maps.event.trigger(this.pano, "resize");
+    this.refresh();
+  };
   private result: TurnResult | null = null;
   private minimap: Minimap;
 
@@ -140,8 +152,7 @@ export class Turn {
       if (k !== "enter" && k !== " ") return false;
       // Holding the key shouldn't skip the exhibit and the reveal in one go.
       if (e.repeat) return true;
-      if (this.stage === "exhibit") this.showReveal();
-      else this.o.onContinue();
+      this.o.onContinue();
       return true;
     }
     return false;
@@ -151,6 +162,7 @@ export class Turn {
     this.abort.abort();
     cancelAnimationFrame(this.raf);
     this.offAuth();
+    window.removeEventListener("resize", this.onResize);
     if (this.pano) google.maps.event.clearInstanceListeners(this.pano);
     this.pano = null;
     this.minimap.destroy();
@@ -246,13 +258,17 @@ export class Turn {
   private refresh() {
     this.renderDebug();
     if (!this.loc) return;
+    if (this.stage === "results") {
+      this.minimap.draw({ mode: "route", trail: this.routeTrail(), claim: this.claim?.position ?? null, passed: this.passed });
+      return;
+    }
     this.minimap.draw({
-      // While the exhibit is on show, mark where the claim was made.
-      me: this.stage === "exhibit" && this.claim ? this.claim.position : (this.lastPos ?? this.loc.position),
+      mode: "follow",
+      me: this.lastPos ?? this.loc.position,
       headingDeg: this.pano?.getPov().heading ?? 0,
       trail: this.trail,
-      // Bars are only on the map for debugging, or once the turn is over.
-      showBars: this.done || !this.el.debug.classList.contains("hidden"),
+      // Bars are only on the map for debugging.
+      showBars: !this.el.debug.classList.contains("hidden"),
     });
   }
 
@@ -435,86 +451,129 @@ export class Turn {
     });
     this.o.root.querySelector(".turn")!.classList.add("done");
 
-    if (this.claim && this.pano) this.showExhibit();
-    else this.showReveal();
+    this.showResults();
+  }
+
+  /** The walk as drawn on the map: from the start, through every step. */
+  private routeTrail(): LatLng[] {
+    const start = this.loc!.position;
+    return this.trail.length && this.trail[0] !== start ? [start, ...this.trail] : this.trail;
   }
 
   /**
-   * Put the BAR FOUND view back on screen for the room to judge. Reuses the
-   * same panorama (no new billed load); looking around works, walking doesn't.
+   * One page after the turn: a polaroid of the BAR FOUND view (the live
+   * panorama, framed, so no new billed load), the route with every bar they
+   * walked past, and the numbers.
    */
-  private showExhibit() {
-    const claim = this.claim!;
-    const pano = this.pano!;
-    const bars = this.loc!.bars;
-    this.stage = "exhibit";
-    pano.setOptions({ linksControl: false, clickToGo: false });
-    if (pano.getPano() !== claim.panoId) {
-      // A new pano resets the view when it loads, so set it again after.
-      google.maps.event.addListenerOnce(pano, "pano_changed", () => {
-        pano.setPov(claim.pov);
-        pano.setZoom(claim.zoom);
-      });
-      pano.setPano(claim.panoId);
-    }
-    pano.setPov(claim.pov);
-    pano.setZoom(claim.zoom);
+  private showResults() {
+    const r = this.result!;
+    const loc = this.loc!;
+    const claim = this.claim;
+    this.stage = "results";
+
+    // Bars within a short walk of the route. Ones right by the claim don't
+    // count as "walked past": that's the one they picked.
+    const route = this.routeTrail();
+    const near = (b: Bar, pts: LatLng[], m: number) => pts.some((p) => distanceM(p, b) <= m);
+    this.passed = loc.bars.filter((b) => near(b, route.length ? route : [loc.position], PASSED_M));
+    const ignored = claim ? this.passed.filter((b) => distanceM(b, claim.position) <= CLAIMED_M) : [];
+    const walkedPast = this.passed.filter((b) => !ignored.includes(b));
+    const nearby = loc.bars.filter((b) => distanceM(b, loc.position) <= 300).length;
 
     // Evidence for the room, not a verdict: OSM doesn't know every bar.
-    const near = nearestBar(bars, claim.position);
-    const d = near ? Math.round(near.distanceM) : Infinity;
-    const name = near ? `<strong>${esc(near.bar.name)}</strong>` : "";
-    const evidence =
-      d <= 30
-        ? `🍺 ${name} is right there on our map (${d} m).`
-        : d <= 60
-          ? `🍺 Nearest bar on our map: ${name}, ${d} m away.`
-          : near
-            ? `🧐 Nothing on our map within 60 m (nearest: ${name}, ${d} m). Local knowledge, or a lie?`
-            : `🧐 No bars on our map round here. Local knowledge, or a lie?`;
+    let evidence = "";
+    if (claim) {
+      const n = nearestBar(loc.bars, claim.position);
+      const d = n ? Math.round(n.distanceM) : Infinity;
+      const name = n ? `<strong>${esc(n.bar.name)}</strong>` : "";
+      evidence =
+        d <= 30
+          ? `🍺 ${name} is right there on our map (${d} m)`
+          : d <= 60
+            ? `🍺 Nearest bar on our map: ${name}, ${d} m away`
+            : n
+              ? `🧐 Nothing on our map within 60 m (nearest: ${name}, ${d} m). Local knowledge, or a lie?`
+              : `🧐 No bars on our map round here. Local knowledge, or a lie?`;
+    }
+
+    const player = esc(this.o.player);
+    const caption = claim
+      ? `“That's a bar!” – ${player}, ${formatTime(claim.atMs)}`
+      : r.timeMs === null
+        ? `Where ${player} ran out of time`
+        : `Where ${player} finished`;
+    const pastText = walkedPast.length
+      ? `${walkedPast.length}: ${listNames(walkedPast.map((b) => b.name))}`
+      : "none. Not a pub in sight";
+    const walkText = this.steps
+      ? `${Math.round(this.walkedM)} m in ${this.steps} step${this.steps === 1 ? "" : "s"}`
+      : "didn't move an inch";
 
     const reveal = this.el.reveal;
-    reveal.classList.add("exhibit");
+    reveal.classList.add("results");
     reveal.innerHTML = `
-      <div class="exhibit-card">
-        <div class="exhibit-stamp">Exhibit A</div>
-        <div class="exhibit-claim"><strong>${esc(this.o.player)}</strong> says this is a bar</div>
-        <div class="exhibit-meta">Claimed at ${formatTime(claim.atMs)}</div>
-        <div class="exhibit-evidence">${evidence}</div>
-        <div class="exhibit-hint">Drag to look around. Heckle accordingly.</div>
-        <button class="primary" data-act="verdict">Where were we? <kbd>Enter</kbd></button>
-      </div>`;
-    reveal.querySelector('[data-act="verdict"]')!.addEventListener("click", () => this.showReveal());
-    reveal.classList.remove("hidden");
-    this.refresh();
-  }
-
-  private showReveal() {
-    const r = this.result!;
-    const { panoId, pathM, position, bars } = this.loc!;
-    const nearby = bars.filter((b) => distanceM(b, position) <= 300).length;
-    this.stage = "reveal";
-    const reveal = this.el.reveal;
-    reveal.classList.remove("exhibit");
-    reveal.innerHTML = `
-      <div class="reveal-card">
-        <div class="reveal-result ${r.timeMs === null ? "dnf" : ""}">
-          ${r.timeMs === null ? "⏰ DNF" : `🍻 ${formatTime(r.timeMs)}`}
+      <div class="results-page">
+        <header class="results-head">
+          <div class="results-time ${r.timeMs === null ? "dnf" : ""}">${r.timeMs === null ? "⏰ DNF" : `🍻 ${formatTime(r.timeMs)}`}</div>
+          <div class="results-where">${player}, you were in <strong>${esc(r.city)}</strong>, ${esc(r.country)}</div>
+        </header>
+        <div class="results-grid">
+          <figure class="polaroid">
+            <div class="polaroid-photo" data-slot="photo"></div>
+            <figcaption class="polaroid-caption">${caption}</figcaption>
+          </figure>
+          <div class="route-card">
+            <div class="route-map" data-slot="map"></div>
+            <div class="route-legend">
+              <span><i class="key trail"></i>your walk</span>
+              <span><i class="key bar"></i>bars you passed</span>
+              <span><i class="key faint"></i>other bars</span>
+              ${claim ? `<span><i class="key claim"></i>your “bar”</span>` : ""}
+            </div>
+          </div>
         </div>
-        <div class="reveal-label">${esc(this.o.player)}, you were in…</div>
-        <div class="reveal-city">${esc(r.city)}</div>
-        <div class="reveal-country">${esc(r.country)}</div>
-        <div class="reveal-bar">
-          Nearest bar to your start: <strong>${esc(r.bar ?? "")}</strong>, a ${Math.round(pathM)} m walk.
-          ${nearby > 1 ? `${nearby} bars within 300 m.` : ""}
+        ${evidence ? `<p class="results-evidence">${evidence}</p>` : ""}
+        <ul class="results-stats">
+          <li><span>🚶 Walked</span>${walkText}</li>
+          <li><span>🍺 Bars you walked past</span>${esc(pastText)}</li>
+          <li><span>⏱ Bar found</span>${r.barMs === null ? "–" : formatTime(r.barMs)}<span class="sep">·</span><span>Drink finished</span>${r.drinkMs === null ? "–" : formatTime(r.drinkMs)}</li>
+          <li><span>📍 Nearest bar to your start</span>${esc(r.bar ?? "")}, a ${Math.round(loc.pathM)} m walk (${nearby} within 300 m)</li>
+        </ul>
+        <div class="results-actions">
+          <button class="primary huge" data-act="continue">Continue <kbd>Enter</kbd></button>
+          <a class="reveal-link" href="https://www.google.com/maps/@?api=1&map_action=pano&pano=${encodeURIComponent(claim?.panoId ?? loc.panoId)}" target="_blank" rel="noopener">open this spot in Google Maps ↗</a>
         </div>
-        <a class="reveal-link" href="https://www.google.com/maps/@?api=1&map_action=pano&pano=${encodeURIComponent(panoId)}" target="_blank" rel="noopener">see where you started on Google Maps ↗</a>
         <div class="osm-credit">Bar data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>
-        <button class="primary" data-act="continue">Continue <kbd>Enter</kbd></button>
       </div>`;
     reveal.querySelector('[data-act="continue"]')!.addEventListener("click", () => this.o.onContinue());
     reveal.classList.remove("hidden");
-    this.refresh();
+    this.o.root.querySelector(".turn")!.classList.add("results-mode");
+
+    // Move the live panorama into the polaroid, and the map into its box.
+    reveal.querySelector('[data-slot="photo"]')!.appendChild(this.el.viewer);
+    reveal.querySelector('[data-slot="map"]')!.appendChild(this.el.minimap);
+    this.el.minimap.classList.remove("hidden");
+
+    const pano = this.pano;
+    if (pano) {
+      // A still "photo": look around, but no walking and no controls.
+      pano.setOptions({ linksControl: false, clickToGo: false, zoomControl: false });
+      if (claim) {
+        if (pano.getPano() !== claim.panoId) {
+          // A new pano resets the view when it loads, so set it again after.
+          google.maps.event.addListenerOnce(pano, "pano_changed", () => {
+            pano.setPov(claim.pov);
+            pano.setZoom(claim.zoom);
+          });
+          pano.setPano(claim.panoId);
+        }
+        pano.setPov(claim.pov);
+        pano.setZoom(claim.zoom);
+      }
+    }
+    // Let the new layout settle, then resize both to their new boxes.
+    requestAnimationFrame(this.onResize);
+    window.addEventListener("resize", this.onResize);
   }
 
   private showLoading(msg: string, error = false) {
@@ -522,4 +581,11 @@ export class Turn {
     this.el.loading.classList.toggle("error", error);
     this.el.loadingMsg.textContent = msg;
   }
+}
+
+function listNames(names: string[]): string {
+  const shown = names.slice(0, 5);
+  const more = names.length - shown.length;
+  const head = shown.length > 1 ? `${shown.slice(0, -1).join(", ")} and ${shown[shown.length - 1]}` : shown[0] ?? "";
+  return more > 0 ? `${shown.join(", ")} and ${more} more` : head;
 }

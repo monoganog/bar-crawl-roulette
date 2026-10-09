@@ -71,8 +71,7 @@ With `npm run dev` running, open http://localhost:5173/check.html. For each city
    - If you hit the time cap first, the turn is a **DNF**.
    - If the imagery is broken or you're stuck in a tunnel, **Bad spot, re-roll** gives you a new location and restarts the clock.
    - The **mini map** in the top-right corner keeps you in the middle and moves with you. It shows the surrounding streets (no names, water or landmarks), your trail and which way you're facing, north up, about 300 m across. Bars only appear on it once the turn is over.
-4. **Exhibit A:** if you pressed BAR FOUND, Street View jumps back to exactly what you were looking at when you claimed it, with the nearest bar on our map to that spot as evidence, so the room can judge (and heckle). OpenStreetMap doesn't know every bar, so it's evidence, not a verdict. Press `Enter` for the verdict.
-5. **Reveal:** you find out which city you were in, the nearest bar to where you started, and how many bars were within 300 m. Then it's on to the next turn. **Any bar counts.**
+4. **Results:** one page after each turn. On the left, a polaroid of exactly what you were looking at when you pressed BAR FOUND (the live Street View, framed, so you can still look around), captioned with the time, plus the nearest bar on our map to that spot as evidence. OpenStreetMap doesn't know every bar, so it's evidence, not a verdict. On the right, your route on a map with every bar you walked past named. Underneath: which city you were in, how far you walked, the bars you passed, your button times, and the nearest bar to where you started. **Any bar counts.**
 
 ### Winning
 

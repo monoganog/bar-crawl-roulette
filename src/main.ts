@@ -1,3 +1,4 @@
+import "@fontsource/caveat/700.css";
 import "./style.css";
 import { computeAwards } from "./awards";
 import { summariseRound, trophies, trophyIcons } from "./commentary";

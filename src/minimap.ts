@@ -1,8 +1,12 @@
 import type { Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
+import type { Bar } from "./bars";
 import type { FoundLocation, LatLng } from "./streetview";
 
-/** About how much ground the map covers: metres per CSS pixel. */
+/** How much ground the in-turn map covers: metres per CSS pixel. */
 const METRES_PER_PX = 1.5;
+/** The route map shows at least this much ground, even for a short walk. */
+const ROUTE_MIN_SPAN_M = 220;
+const ROUTE_PADDING_PX = 36;
 
 /** Colours match the CSS tokens in style.css. */
 const C = {
@@ -13,6 +17,9 @@ const C = {
   cone: "rgba(255, 61, 127, 0.3)",
   start: "#b3a8c4",
   bar: "#2ee6a6",
+  barFaint: "rgba(46, 230, 166, 0.45)",
+  label: "#fbf7ff",
+  labelHalo: "#0d0b14",
 };
 
 // Free OpenStreetMap vector tiles, no key needed: https://openfreemap.org
@@ -53,18 +60,32 @@ const STYLE: StyleSpecification = {
   ],
 };
 
-interface DrawOpts {
+/** During a turn: centred on the player, north up. */
+interface FollowView {
+  mode: "follow";
   me: LatLng;
   headingDeg: number;
   trail: LatLng[];
   showBars: boolean;
 }
 
+/** After a turn: fitted to the whole walk, with the bars they passed named. */
+interface RouteView {
+  mode: "route";
+  trail: LatLng[];
+  /** Where they pressed BAR FOUND, if they did. */
+  claim: LatLng | null;
+  /** Bars close to the route; these get labels. */
+  passed: Bar[];
+}
+
+type View = FollowView | RouteView;
+type Project = (p: LatLng) => { x: number; y: number };
+
 /**
- * A label-free street map, centred on the player, north up. Streets come
- * from OpenFreeMap tiles; if those can't load, it falls back to drawing the
- * Street View network explored when the drop was planned. The player's
- * trail, start and (when allowed) bars are drawn on top.
+ * A label-free street map. Streets come from OpenFreeMap tiles; if those
+ * can't load, it falls back to drawing the Street View network explored when
+ * the drop was planned. Trail, start, bars and the player are drawn on top.
  */
 export class Minimap {
   private tiles: HTMLDivElement;
@@ -74,7 +95,7 @@ export class Minimap {
   private map: MapLibreMap | null = null;
   private mapState: "none" | "loading" | "ready" | "failed" = "none";
   private loc: FoundLocation | null = null;
-  private last: DrawOpts | null = null;
+  private last: View | null = null;
 
   constructor(private container: HTMLElement) {
     container.innerHTML = `
@@ -101,22 +122,45 @@ export class Minimap {
     this.map = null;
   }
 
-  draw(opts: DrawOpts) {
-    this.last = opts;
+  draw(view: View) {
+    this.last = view;
     if (!this.loc) return;
-    const size = this.container.clientWidth;
-    if (!size) return; // hidden: nothing to draw yet
-    this.sizeOverlay(size);
-    if (this.mapState === "none") this.startMap(opts.me);
+    const w = this.container.clientWidth;
+    const h = this.container.clientHeight;
+    if (!w || !h) return; // hidden: nothing to draw yet
+    this.sizeOverlay(w, h);
+    const { centre, mPerPx } =
+      view.mode === "follow" ? { centre: view.me, mPerPx: METRES_PER_PX } : this.routeFit(view, w, h);
+    if (this.mapState === "none") this.startMap(centre);
     if (this.map && this.mapState === "ready") {
       this.map.resize();
-      this.map.jumpTo({ center: [opts.me.lng, opts.me.lat], zoom: zoomFor(opts.me.lat) });
+      this.map.jumpTo({ center: [centre.lng, centre.lat], zoom: zoomFor(centre.lat, mPerPx) });
     }
-    this.drawOverlay(opts, size);
+    const P: Project = (p) => this.project(p, centre, mPerPx, w, h);
+    this.ctx.clearRect(0, 0, w, h);
+    if (this.mapState !== "ready") this.drawExploredStreets(P);
+    if (view.mode === "follow") this.drawFollow(view, P, w, h);
+    else this.drawRoute(view, P, w, h);
+  }
+
+  /** Centre and scale that fit the whole walk, the start and the claim. */
+  private routeFit(view: RouteView, w: number, h: number) {
+    const pts = [this.loc!.position, ...view.trail, ...(view.claim ? [view.claim] : [])];
+    const lats = pts.map((p) => p.lat);
+    const lngs = pts.map((p) => p.lng);
+    const centre = {
+      lat: (Math.min(...lats) + Math.max(...lats)) / 2,
+      lng: (Math.min(...lngs) + Math.max(...lngs)) / 2,
+    };
+    const k = Math.cos((centre.lat * Math.PI) / 180);
+    const spanX = Math.max((Math.max(...lngs) - Math.min(...lngs)) * 111_320 * k, ROUTE_MIN_SPAN_M);
+    const spanY = Math.max((Math.max(...lats) - Math.min(...lats)) * 110_540, ROUTE_MIN_SPAN_M);
+    const mPerPx = Math.max(spanX / (w - ROUTE_PADDING_PX * 2), spanY / (h - ROUTE_PADDING_PX * 2));
+    return { centre, mPerPx };
   }
 
   /** Load MapLibre and the tiles on first use; fall back quietly on failure. */
-  private async startMap(me: LatLng) {
+  private async startMap(at: LatLng) {
     this.mapState = "loading";
     try {
       const [{ Map, setWorkerUrl }, { default: workerUrl }] = await Promise.all([
@@ -130,8 +174,8 @@ export class Minimap {
       const map = new Map({
         container: this.tiles,
         style: STYLE,
-        center: [me.lng, me.lat],
-        zoom: zoomFor(me.lat),
+        center: [at.lng, at.lat],
+        zoom: zoomFor(at.lat, METRES_PER_PX),
         interactive: false,
         attributionControl: false,
         fadeDuration: 0,
@@ -163,119 +207,168 @@ export class Minimap {
     if (this.last) this.draw(this.last);
   }
 
-  private sizeOverlay(size: number) {
+  private sizeOverlay(w: number, h: number) {
     const dpr = window.devicePixelRatio || 1;
-    if (this.overlay.width !== size * dpr) {
-      this.overlay.width = size * dpr;
-      this.overlay.height = size * dpr;
+    if (this.overlay.width !== w * dpr || this.overlay.height !== h * dpr) {
+      this.overlay.width = w * dpr;
+      this.overlay.height = h * dpr;
     }
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
   /** Screen position of a point, matching the tiles when they're showing. */
-  private project(p: LatLng, me: LatLng, size: number) {
+  private project(p: LatLng, centre: LatLng, mPerPx: number, w: number, h: number) {
     if (this.map && this.mapState === "ready") {
       const q = this.map.project([p.lng, p.lat]);
       return { x: q.x, y: q.y };
     }
-    const k = Math.cos((me.lat * Math.PI) / 180);
+    const k = Math.cos((centre.lat * Math.PI) / 180);
     return {
-      x: size / 2 + ((p.lng - me.lng) * 111_320 * k) / METRES_PER_PX,
-      y: size / 2 - ((p.lat - me.lat) * 110_540) / METRES_PER_PX,
+      x: w / 2 + ((p.lng - centre.lng) * 111_320 * k) / mPerPx,
+      y: h / 2 - ((p.lat - centre.lat) * 110_540) / mPerPx,
     };
   }
 
-  private drawOverlay(opts: DrawOpts, size: number) {
+  /** No tiles: draw the streets we explored instead. */
+  private drawExploredStreets(P: Project) {
     const ctx = this.ctx;
     const loc = this.loc!;
-    const P = (p: LatLng) => this.project(p, opts.me, size);
-    ctx.clearRect(0, 0, size, size);
-
-    // No tiles: draw the streets we explored instead.
-    if (this.mapState !== "ready") {
-      ctx.strokeStyle = C.street;
-      ctx.lineWidth = 2.5;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      for (const n of loc.streets.values()) {
-        const a = P(n.pos);
-        for (const id of n.links) {
-          if (id < n.id) continue;
-          const m = loc.streets.get(id);
-          if (!m) continue;
-          const b = P(m.pos);
-          ctx.moveTo(a.x, a.y);
-          ctx.lineTo(b.x, b.y);
-        }
+    ctx.strokeStyle = C.street;
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    for (const n of loc.streets.values()) {
+      const a = P(n.pos);
+      for (const id of n.links) {
+        if (id < n.id) continue;
+        const m = loc.streets.get(id);
+        if (!m) continue;
+        const b = P(m.pos);
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
       }
-      ctx.stroke();
     }
+    ctx.stroke();
+  }
 
-    // Where they've been.
-    if (opts.trail.length > 1) {
-      ctx.strokeStyle = C.trail;
-      ctx.lineWidth = 3;
-      ctx.lineJoin = "round";
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      opts.trail.forEach((p, i) => {
-        const q = P(p);
-        if (i) ctx.lineTo(q.x, q.y);
-        else ctx.moveTo(q.x, q.y);
-      });
-      ctx.stroke();
-    }
+  private drawTrail(trail: LatLng[], P: Project, width = 3) {
+    if (trail.length < 2) return;
+    const ctx = this.ctx;
+    ctx.strokeStyle = C.trail;
+    ctx.lineWidth = width;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    trail.forEach((p, i) => {
+      const q = P(p);
+      if (i) ctx.lineTo(q.x, q.y);
+      else ctx.moveTo(q.x, q.y);
+    });
+    ctx.stroke();
+  }
 
-    // Start ring.
-    const start = P(loc.position);
+  private drawStart(P: Project) {
+    const ctx = this.ctx;
+    const s = P(this.loc!.position);
     ctx.strokeStyle = C.start;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(start.x, start.y, 5, 0, Math.PI * 2);
+    ctx.arc(s.x, s.y, 5, 0, Math.PI * 2);
     ctx.stroke();
+    return s;
+  }
 
-    if (opts.showBars) {
-      ctx.fillStyle = C.bar;
-      for (const bar of loc.bars) {
-        const p = P(bar);
-        if (p.x < -10 || p.y < -10 || p.x > size + 10 || p.y > size + 10) continue;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-        ctx.fill();
-      }
+  private drawBars(bars: Bar[], P: Project, w: number, h: number, colour: string, r: number) {
+    const ctx = this.ctx;
+    ctx.fillStyle = colour;
+    for (const bar of bars) {
+      const p = P(bar);
+      if (p.x < -10 || p.y < -10 || p.x > w + 10 || p.y > h + 10) continue;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fill();
     }
+  }
 
-    // Me, always in the middle, with a view cone.
-    const c = size / 2;
-    const a = ((opts.headingDeg - 90) * Math.PI) / 180;
-    const cone = Math.PI / 5;
-    ctx.fillStyle = C.cone;
-    ctx.beginPath();
-    ctx.moveTo(c, c);
-    ctx.arc(c, c, 28, a - cone, a + cone);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = C.me;
-    ctx.strokeStyle = "#0d0b14";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(c, c, 6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    // North marker.
+  private drawNorth(w: number) {
+    const ctx = this.ctx;
     ctx.fillStyle = C.start;
     ctx.font = "700 11px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
-    ctx.fillText("N", size - 14, 6);
+    ctx.fillText("N", w - 14, 6);
+  }
+
+  private drawFollow(view: FollowView, P: Project, w: number, h: number) {
+    const ctx = this.ctx;
+    this.drawTrail(view.trail, P);
+    this.drawStart(P);
+    if (view.showBars) this.drawBars(this.loc!.bars, P, w, h, C.bar, 4);
+
+    // Me, always in the middle, with a view cone.
+    const cx = w / 2;
+    const cy = h / 2;
+    const a = ((view.headingDeg - 90) * Math.PI) / 180;
+    const cone = Math.PI / 5;
+    ctx.fillStyle = C.cone;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, 28, a - cone, a + cone);
+    ctx.closePath();
+    ctx.fill();
+    this.dot(cx, cy, C.me);
+    this.drawNorth(w);
+  }
+
+  private drawRoute(view: RouteView, P: Project, w: number, h: number) {
+    const passed = new Set(view.passed);
+    this.drawBars(this.loc!.bars.filter((b) => !passed.has(b)), P, w, h, C.barFaint, 3.5);
+    this.drawTrail(view.trail, P, 4);
+    const start = this.drawStart(P);
+    this.label("start", start.x, start.y + 16, C.start);
+    this.drawBars(view.passed, P, w, h, C.bar, 6);
+    for (const bar of view.passed.slice(0, 8)) {
+      const p = P(bar);
+      this.label(bar.name, p.x, p.y - 14, C.label);
+    }
+    if (view.claim) {
+      const c = P(view.claim);
+      this.dot(c.x, c.y, C.me, 7);
+      this.label("you said bar", c.x, c.y + 18, C.me);
+    }
+    this.drawNorth(w);
+  }
+
+  private dot(x: number, y: number, fill: string, r = 6) {
+    const ctx = this.ctx;
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = C.labelHalo;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  /** Text with a dark halo, so it reads over streets and dots. */
+  private label(text: string, x: number, y: number, colour: string) {
+    const ctx = this.ctx;
+    ctx.font = "700 12px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineWidth = 4;
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = C.labelHalo;
+    ctx.strokeText(text, x, y);
+    ctx.fillStyle = colour;
+    ctx.fillText(text, x, y);
   }
 }
 
 /**
- * MapLibre zoom that gives METRES_PER_PX at this latitude. MapLibre's world
- * is 512 px wide at zoom 0, so a pixel there covers ~78 km at the equator.
+ * MapLibre zoom that gives `mPerPx` metres per pixel at this latitude.
+ * MapLibre's world is 512 px wide at zoom 0, so a pixel there covers ~78 km.
  */
-function zoomFor(lat: number): number {
-  return Math.log2((78_271.517 * Math.cos((lat * Math.PI) / 180)) / METRES_PER_PX);
+function zoomFor(lat: number, mPerPx: number): number {
+  return Math.log2((78_271.517 * Math.cos((lat * Math.PI) / 180)) / mPerPx);
 }
