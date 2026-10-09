@@ -1262,28 +1262,52 @@ table.lb {
   color: var(--mint);
 }
 
-.results-stats {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.stat-tiles {
   display: grid;
-  gap: 0.5rem;
-  font-size: 1.15rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.8rem;
 }
 
-.results-stats li {
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.9rem 1rem 1rem;
   background: var(--bg-2);
   border-radius: 12px;
-  padding: 0.7rem 1rem;
+  box-shadow: inset 0 4px 0 var(--tone);
 }
 
-.results-stats span {
+.stat-tile.amber { --tone: var(--amber); }
+.stat-tile.mint { --tone: var(--mint); }
+.stat-tile.pink { --tone: var(--pink); }
+.stat-tile.gold { --tone: var(--gold); }
+
+.stat-label {
   color: var(--muted);
-  margin-right: 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 
-.results-stats .sep {
-  margin: 0 0.7rem;
+.stat-value {
+  color: var(--tone);
+  font-size: 2.2rem;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.stat-sub {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .stat-tiles {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .results-actions {

@@ -325,7 +325,11 @@ export class Minimap {
     this.drawBars(this.loc!.bars.filter((b) => !passed.has(b)), P, w, h, C.barFaint, 3.5);
     this.drawTrail(view.trail, P, 4);
     const start = this.drawStart(P);
-    this.label("start", start.x, start.y + 16, C.start);
+    const claimAt = view.claim ? P(view.claim) : null;
+    // Claimed without moving: the claim label says it all.
+    if (!claimAt || Math.hypot(claimAt.x - start.x, claimAt.y - start.y) > 24) {
+      this.label("start", start.x, start.y + 16, C.start);
+    }
     this.drawBars(view.passed, P, w, h, C.bar, 6);
     for (const bar of view.passed.slice(0, 8)) {
       const p = P(bar);

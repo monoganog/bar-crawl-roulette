@@ -502,12 +502,12 @@ export class Turn {
       : r.timeMs === null
         ? `Where ${player} ran out of time`
         : `Where ${player} finished`;
-    const pastText = walkedPast.length
-      ? `${walkedPast.length}: ${listNames(walkedPast.map((b) => b.name))}`
-      : "none. Not a pub in sight";
-    const walkText = this.steps
-      ? `${Math.round(this.walkedM)} m in ${this.steps} step${this.steps === 1 ? "" : "s"}`
-      : "didn't move an inch";
+    const tile = (tone: string, label: string, value: string, sub: string) => `
+      <div class="stat-tile ${tone}">
+        <div class="stat-label">${label}</div>
+        <div class="stat-value">${value}</div>
+        <div class="stat-sub">${sub}</div>
+      </div>`;
 
     const reveal = this.el.reveal;
     reveal.classList.add("results");
@@ -533,12 +533,32 @@ export class Turn {
           </div>
         </div>
         ${evidence ? `<p class="results-evidence">${evidence}</p>` : ""}
-        <ul class="results-stats">
-          <li><span>🚶 Walked</span>${walkText}</li>
-          <li><span>🍺 Bars you walked past</span>${esc(pastText)}</li>
-          <li><span>⏱ Bar found</span>${r.barMs === null ? "–" : formatTime(r.barMs)}<span class="sep">·</span><span>Drink finished</span>${r.drinkMs === null ? "–" : formatTime(r.drinkMs)}</li>
-          <li><span>📍 Nearest bar to your start</span>${esc(r.bar ?? "")}, a ${Math.round(loc.pathM)} m walk (${nearby} within 300 m)</li>
-        </ul>
+        <div class="stat-tiles">
+          ${tile(
+            "amber",
+            "🚶 Walked",
+            `${Math.round(this.walkedM)} m`,
+            this.steps ? `in ${this.steps} step${this.steps === 1 ? "" : "s"}` : "didn't move an inch",
+          )}
+          ${tile(
+            "mint",
+            "🍺 Bars walked past",
+            String(walkedPast.length),
+            walkedPast.length ? esc(listNames(walkedPast.map((b) => b.name))) : "Not a pub in sight",
+          )}
+          ${tile(
+            "pink",
+            "⏱ Bar found",
+            r.barMs === null ? "–" : formatTime(r.barMs),
+            r.drinkMs === null ? "drink not finished" : `drink empty at ${formatTime(r.drinkMs)}`,
+          )}
+          ${tile(
+            "gold",
+            "📍 Nearest bar to start",
+            `${Math.round(loc.pathM)} m`,
+            `${esc(r.bar ?? "")} · ${nearby} within 300 m`,
+          )}
+        </div>
         <div class="results-actions">
           <button class="primary huge" data-act="continue">Continue <kbd>Enter</kbd></button>
           <a class="reveal-link" href="https://www.google.com/maps/@?api=1&map_action=pano&pano=${encodeURIComponent(claim?.panoId ?? loc.panoId)}" target="_blank" rel="noopener">open this spot in Google Maps ↗</a>
