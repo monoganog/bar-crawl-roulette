@@ -1198,9 +1198,49 @@ table.lb {
   gap: 1.5rem;
 }
 
-.interstitial h1 {
-  font-size: 3.5rem;
+.round-label {
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.round-winner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem 0.8rem;
+  font-size: 2.6rem;
+  font-weight: 800;
+  text-align: center;
+  animation: pop 0.45s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+
+.round-winner strong {
+  color: var(--gold);
+}
+
+.round-cup {
+  font-size: 3.4rem;
+}
+
+.round-winner-time {
+  color: var(--mint);
+  font-variant-numeric: tabular-nums;
+}
+
+.round-headline {
   margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--amber);
+  text-align: center;
+}
+
+.cups {
+  font-size: 0.85em;
+  letter-spacing: 0.05em;
 }
 
 .round-list {

@@ -1,5 +1,6 @@
 import "./style.css";
 import { computeAwards } from "./awards";
+import { summariseRound, trophies, trophyIcons } from "./commentary";
 import { leaderboardHTML } from "./leaderboard";
 import { rulesHTML } from "./rules";
 import { DIFFICULTIES, dropSpec, type Difficulty } from "./difficulty";
@@ -272,13 +273,15 @@ function renderWheel() {
     // Round robin: no wheel, just the order with whoever's next highlighted.
     picked = next;
     const order = G.turnOrder(state);
+    const won = trophies(state, state.round - 1);
     main.querySelector<HTMLElement>("#order")!.innerHTML = `
       <div class="order-label">Round ${state.round} turn order</div>
       <ol class="order-list">
         ${order
           .map((p) => {
             const cls = p === next ? "now" : state.playedThisRound.includes(p) ? "done" : "";
-            return `<li class="${cls}">${cls === "done" ? "✓ " : ""}${esc(p)}</li>`;
+            const cups = trophyIcons(won.get(p) ?? 0);
+            return `<li class="${cls}">${cls === "done" ? "✓ " : ""}${esc(p)}${cups ? ` <span class="cups">${cups}</span>` : ""}</li>`;
           })
           .join("")}
       </ol>`;
@@ -363,14 +366,26 @@ function renderRoundOver() {
   const roundResults = state.results
     .filter((r) => r.round === state.round)
     .sort((a, b) => (a.timeMs ?? Infinity) - (b.timeMs ?? Infinity));
+  const { winner, headline } = summariseRound(state);
+  const won = trophies(state, state.round);
   main.innerHTML = `
     <section class="interstitial">
-      <h1>Round ${state.round} done!</h1>
+      <div class="round-label">Round ${state.round} of ${state.settings.rounds}</div>
+      <div class="round-winner">
+        ${
+          winner
+            ? `<span class="round-cup">🏆</span>
+               <span><strong>${esc(winner.player)}</strong> wins round ${state.round}</span>
+               <span class="round-winner-time">${G.formatTime(winner.timeMs!)}</span>`
+            : `<span class="round-cup">🫗</span><span>No winner this round</span>`
+        }
+      </div>
+      <p class="round-headline">${esc(headline)}</p>
       <ol class="round-list">
         ${roundResults
           .map(
             (r) => `<li class="${r.timeMs === null ? "dnf" : ""}">
-              <span class="rl-name">${esc(r.player)}</span>
+              <span class="rl-name">${esc(r.player)}${trophyIcons(won.get(r.player) ?? 0) ? ` <span class="cups">${trophyIcons(won.get(r.player) ?? 0)}</span>` : ""}</span>
               <span class="rl-time">${r.timeMs === null ? "DNF" : G.formatTime(r.timeMs)}</span>
               <span class="rl-city">${esc(r.city)}, ${esc(r.country)}</span>
             </li>`,
