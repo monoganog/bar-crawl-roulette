@@ -111,7 +111,16 @@ function render() {
 
   if (state.phase === "setup") renderSetup();
   else if (state.phase === "finished") renderFinished();
-  else if (G.remainingThisRound(state).length === 0) renderRoundOver();
+  else if (G.remainingThisRound(state).length === 0) {
+    // Playing solo, the results page already said how it went: skip the
+    // round review and carry straight on.
+    if (state.settings.players.length === 1) {
+      state = G.advanceRound(state);
+      render();
+    } else {
+      renderRoundOver();
+    }
+  }
   else renderWheel();
 }
 
