@@ -5,8 +5,8 @@ import type { FoundLocation, LatLng } from "./streetview";
 /** How much ground the in-turn map covers: metres per CSS pixel. */
 const METRES_PER_PX = 1.5;
 /** The route map shows at least this much ground, even for a short walk. */
-const ROUTE_MIN_SPAN_M = 220;
-const ROUTE_PADDING_PX = 36;
+const ROUTE_MIN_SPAN_M = 260;
+const ROUTE_PADDING_PX = 72;
 
 /** Colours match the CSS tokens in style.css. */
 const C = {
