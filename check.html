@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Coverage Check</title>
+    <style>
+      body { background: #0d0b14; color: #fbf7ff; font: 15px/1.5 ui-monospace, Menlo, monospace; padding: 24px; }
+      button { font: inherit; padding: 6px 14px; margin-right: 8px; cursor: pointer; }
+      .bad { color: #ff4d4d; } .ok { color: #2ee6a6; } .meh { color: #ffb703; }
+      pre { white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <h1>Street View coverage check</h1>
+    <p>For each city and round, picks 3 random gaps between bars and tries to plan a drop whose walk to the nearest known bar matches the round. Shows walk / straight-line distance to that bar and how many panoramas were explored. Lookups are free.</p>
+    <button id="sample">Check 5 sample cities</button>
+    <button id="all">Check all cities</button>
+    <pre id="out"></pre>
+    <script type="module" src="/src/check.ts"></script>
+  </body>
+</html>
