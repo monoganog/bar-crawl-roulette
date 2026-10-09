@@ -12,6 +12,13 @@ import { esc } from "./util";
 import { Wheel } from "./wheel";
 
 const API_KEY = (import.meta.env.VITE_GOOGLE_MAPS_KEY ?? "").trim();
+const VERSION = [
+  `v${__APP_VERSION__}`,
+  import.meta.env.DEV ? "dev" : __BUILD_NUMBER__ && `build ${__BUILD_NUMBER__}`,
+  __COMMIT__,
+]
+  .filter(Boolean)
+  .join(" · ");
 // Start loading Google's script now so the first turn doesn't wait for it.
 if (API_KEY) loadStreetView(API_KEY).catch(() => {});
 
@@ -22,7 +29,10 @@ let prefetch: { promise: Promise<FoundLocation>; abort: AbortController } | null
 
 app.innerHTML = `
   <header class="top">
-    <div class="logo">🍺 Bar Crawl <span>Roulette</span></div>
+    <div class="brand">
+      <div class="logo">🍺 Bar Crawl <span>Roulette</span></div>
+      <div class="version">${VERSION}</div>
+    </div>
     <div class="round-pill" id="roundPill"></div>
     <div class="top-actions">
       <button class="ghost" id="lbBtn">Leaderboard <kbd>L</kbd></button>

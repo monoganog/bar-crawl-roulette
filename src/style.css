@@ -137,6 +137,22 @@ a:focus-visible {
   }
 }
 
+.brand {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+/* Always there, barely noticeable: which build is running. */
+.version {
+  font-size: 0.65rem;
+  color: var(--muted);
+  opacity: 0.45;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  user-select: all;
+}
+
 .logo {
   font-weight: 900;
   font-size: 1.5rem;

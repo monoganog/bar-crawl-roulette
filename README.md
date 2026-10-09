@@ -145,6 +145,10 @@ npm run build     # type-check + production build into dist/
 npm run preview
 ```
 
+### Version
+
+The header shows which build is running, faintly under the logo: `v0.1.0 · build 6 · a1b2c3d`. That's the `version` in `package.json` (bump it for milestones), the number of commits (goes up with every deploy), and the commit the site was built from. Under `npm run dev` it says `dev` instead of a build number.
+
 ## Publishing
 
 It's a static site, so any static host works. This repo includes a GitHub Pages workflow (`.github/workflows/deploy.yml`) that builds and deploys on every push to `main`.
