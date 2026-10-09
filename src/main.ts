@@ -96,6 +96,7 @@ function toggleLeaderboard() {
 function setScreen(s: typeof screen) {
   screen.destroy?.();
   screen = s;
+  document.body.classList.remove("in-turn");
   // Each screen starts at the top, not wherever the last one was scrolled to.
   main.scrollTop = 0;
 }
@@ -375,6 +376,8 @@ function renderTurn(player: string) {
       turn.destroy();
     },
   });
+  // Phones hide the header during a turn (see style.css).
+  document.body.classList.add("in-turn");
 }
 
 // ---------- Round over / finished ----------

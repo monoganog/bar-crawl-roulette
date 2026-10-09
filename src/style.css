@@ -29,6 +29,8 @@ body {
 
 #app {
   height: 100vh;
+  /* On phones, the height that's actually visible around the browser bars. */
+  height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -1633,5 +1635,163 @@ table.lb {
   }
   .viewer-wrap {
     min-height: 60vh;
+  }
+}
+
+/* ---------- Phones ---------- */
+
+@media (max-width: 760px) {
+  /* Leaderboard and New game move to a bar along the bottom, so the
+     header fits the screen. */
+  .top {
+    padding: 0.55rem 1rem;
+    gap: 0.6rem;
+  }
+
+  .logo {
+    font-size: 1.2rem;
+  }
+
+  .round-pill {
+    font-size: 0.85rem;
+    padding: 0.25em 0.7em;
+    margin-left: auto;
+  }
+
+  .top-actions {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    justify-content: center;
+    padding: 0.6rem 1rem calc(0.6rem + env(safe-area-inset-bottom));
+    background: var(--bg-2);
+    border-top: 2px solid var(--bg-3);
+  }
+
+  .top-actions .ghost {
+    flex: 1;
+    max-width: 220px;
+  }
+
+  .top-actions kbd {
+    display: none;
+  }
+
+  main {
+    padding-bottom: 4.5rem;
+  }
+
+  /* During a turn: no header, no bottom bar; all the room goes to the game. */
+  body.in-turn .top {
+    display: none;
+  }
+
+  body.in-turn main {
+    padding-bottom: 0;
+  }
+
+  .turn:not(.results-mode) {
+    height: 100%;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .turn:not(.results-mode) .viewer-wrap {
+    min-height: 0;
+  }
+
+  .minimap {
+    top: 8px;
+    right: 8px;
+    width: 120px;
+    height: 120px;
+    border-radius: 10px;
+  }
+
+  .minimap-attr {
+    font-size: 6px;
+  }
+
+  /* The bottom strip: name and time, then both buttons, always on screen. */
+  .turn:not(.results-mode) .panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "who timer"
+      "cap cap"
+      "bar drink"
+      "small small";
+    align-items: center;
+    gap: 0.45rem 0.6rem;
+    padding: 0.6rem 0.8rem calc(0.6rem + env(safe-area-inset-bottom));
+    overflow: visible;
+  }
+
+  .panel .who {
+    grid-area: who;
+    min-width: 0;
+  }
+
+  .panel .who-label {
+    display: none;
+  }
+
+  .panel .who-name {
+    font-size: 1.3rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .panel .timer {
+    grid-area: timer;
+    font-size: 2.4rem;
+    padding: 0;
+    text-align: right;
+  }
+
+  .panel .cap {
+    grid-area: cap;
+    height: 6px;
+  }
+
+  .panel .cap-label {
+    display: none;
+  }
+
+  .panel .big-btn {
+    min-height: 66px;
+    font-size: 1.05rem;
+    gap: 0.15rem;
+    padding: 0.4rem;
+  }
+
+  .panel .big-btn.bar {
+    grid-area: bar;
+  }
+
+  .panel .big-btn.drink {
+    grid-area: drink;
+  }
+
+  .panel .big-btn-sub {
+    font-size: 0.72rem;
+  }
+
+  .panel .small-actions {
+    grid-area: small;
+    margin-top: 0;
+  }
+
+  .panel .small-actions .ghost {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .debug {
+    min-width: 0;
+    max-width: 70%;
+    font-size: 11px;
   }
 }
