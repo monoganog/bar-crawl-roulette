@@ -62,7 +62,7 @@ With `npm run dev` running, open http://localhost:5173/check.html. For each city
 
 ## How to play
 
-1. **Setup:** add the players, then set the time cap (default 5 min), the number of rounds (default 3) and the difficulty.
+1. **Setup:** add the players, then set the time cap (default 3 min), the number of rounds (default 3) and the difficulty.
 2. **Spin:** in round 1, the wheel picks who goes next (press Space again to skip the animation). The last player left doesn't need a spin. From round 2, players go in round 1's order, no wheel.
 3. **Turn:** the clock starts once Street View loads. Drag to look around, and click the arrows or the road (or use the keyboard arrows) to move.
    - Click **BAR FOUND** when you spot a bar on screen.

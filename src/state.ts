@@ -46,7 +46,7 @@ export interface GameState {
 
 const KEY = "bar-crawl-roulette:v1";
 
-const DEFAULT_SETTINGS: Settings = { players: [], timeCapSec: 300, rounds: 3, difficulty: "normal" };
+const DEFAULT_SETTINGS: Settings = { players: [], timeCapSec: 180, rounds: 3, difficulty: "normal" };
 
 function fresh(settings: Settings = DEFAULT_SETTINGS): GameState {
   return { phase: "setup", settings: { ...settings }, round: 1, playedThisRound: [], results: [] };
