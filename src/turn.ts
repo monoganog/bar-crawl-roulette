@@ -82,6 +82,8 @@ export class Turn {
     this.refresh();
   };
   private result: TurnResult | null = null;
+  /** The panorama they were on when the turn ended, for the Maps link. */
+  private endPanoId: string | null = null;
   private minimap: Minimap;
 
   constructor(private o: TurnOptions) {
@@ -418,6 +420,7 @@ export class Turn {
     cancelAnimationFrame(this.raf);
     const { city, panoId, nearestBar: startBar, barDistanceM, pathM, route, bars } = this.loc;
     const endPos = this.lastPos ?? this.loc.position;
+    this.endPanoId = this.pano?.getPano() ?? this.loc.panoId;
     const result: TurnResult = {
       round: this.o.round,
       player: this.o.player,
@@ -561,7 +564,7 @@ export class Turn {
         </div>
         <div class="results-actions">
           <button class="primary huge" data-act="continue">Continue <kbd>Enter</kbd></button>
-          <a class="reveal-link" href="https://www.google.com/maps/@?api=1&map_action=pano&pano=${encodeURIComponent(claim?.panoId ?? loc.panoId)}" target="_blank" rel="noopener">open this spot in Google Maps ↗</a>
+          <a class="reveal-link" href="https://www.google.com/maps/@?api=1&map_action=pano&pano=${encodeURIComponent(this.endPanoId ?? loc.panoId)}" target="_blank" rel="noopener">open where you finished in Google Maps ↗</a>
         </div>
         <div class="osm-credit">Bar data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>
       </div>`;

@@ -96,6 +96,8 @@ function toggleLeaderboard() {
 function setScreen(s: typeof screen) {
   screen.destroy?.();
   screen = s;
+  // Each screen starts at the top, not wherever the last one was scrolled to.
+  main.scrollTop = 0;
 }
 
 function render() {
@@ -123,6 +125,10 @@ function renderSetup() {
   let rounds = state.settings.rounds;
   let difficulty: Difficulty = state.settings.difficulty ?? "normal";
 
+  // On a phone, focusing the name box scrolls the page down to it and pops up
+  // the keyboard before anyone has read the rules. Only do it with a mouse,
+  // or once they've started adding players.
+  let typing = window.matchMedia("(pointer: fine)").matches;
   const draw = () => {
     main.innerHTML = `
       ${rulesHTML(capMin * 60)}
@@ -183,7 +189,7 @@ function renderSetup() {
 
     const input = main.querySelector<HTMLInputElement>("#nameInput")!;
     const err = main.querySelector<HTMLElement>("#setupError")!;
-    input.focus();
+    if (typing) input.focus({ preventScroll: true });
     main.querySelector("#addForm")!.addEventListener("submit", (e) => {
       e.preventDefault();
       const name = input.value.trim();
@@ -193,6 +199,7 @@ function renderSetup() {
         return;
       }
       players.push(name);
+      typing = true; // keep the keyboard up for the next name
       draw();
     });
     main.querySelectorAll<HTMLButtonElement>(".remove").forEach((b) =>
