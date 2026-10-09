@@ -84,6 +84,10 @@ export class Turn {
   private result: TurnResult | null = null;
   /** The panorama they were on when the turn ended, for the Maps link. */
   private endPanoId: string | null = null;
+  /** Exploring the results photo: where they've walked since the turn ended. */
+  private afterTrail: LatLng[] = [];
+  /** Where the results photo starts (the claim, or where they stopped). */
+  private home: { panoId: string; pos: LatLng } | null = null;
   private minimap: Minimap;
 
   constructor(private o: TurnOptions) {
@@ -240,7 +244,16 @@ export class Turn {
 
   private onMove() {
     const p = this.pano?.getPosition();
-    if (!p || !this.loc || this.done) return;
+    if (!p || !this.loc) return;
+    if (this.stage === "results") {
+      // Walking around the photo after the turn: draw it, don't score it.
+      const pos = { lat: p.lat(), lng: p.lng() };
+      const last = this.afterTrail[this.afterTrail.length - 1];
+      if (!last || distanceM(last, pos) > 0.5) this.afterTrail.push(pos);
+      this.refresh();
+      return;
+    }
+    if (this.done) return;
     // After a re-roll, ignore stray events from the old spot until the new
     // panorama is showing, so the jump between cities isn't counted.
     if (!this.lastPos && this.pano!.getPano() !== this.loc.panoId) return;
@@ -261,7 +274,21 @@ export class Turn {
     this.renderDebug();
     if (!this.loc) return;
     if (this.stage === "results") {
-      this.minimap.draw({ mode: "route", trail: this.routeTrail(), claim: this.claim?.position ?? null, passed: this.passed });
+      const p = this.pano?.getPosition();
+      this.minimap.draw({
+        mode: "route",
+        trail: this.routeTrail(),
+        claim: this.claim?.position ?? null,
+        passed: this.passed,
+        extra: this.afterTrail,
+        me: p
+          ? {
+              // Back on the starting panorama: put the cone exactly on the claim.
+              pos: this.home && this.pano!.getPano() === this.home.panoId ? this.home.pos : { lat: p.lat(), lng: p.lng() },
+              headingDeg: this.pano!.getPov().heading,
+            }
+          : null,
+      });
       return;
     }
     this.minimap.draw({
@@ -521,10 +548,16 @@ export class Turn {
           <div class="results-where">${player}, you were in <strong>${esc(r.city)}</strong>, ${esc(r.country)}</div>
         </header>
         <div class="results-grid">
-          <figure class="polaroid">
-            <div class="polaroid-photo" data-slot="photo"></div>
-            <figcaption class="polaroid-caption">${caption}</figcaption>
-          </figure>
+          <div class="polaroid-col">
+            <figure class="polaroid">
+              <div class="polaroid-photo" data-slot="photo"></div>
+              <figcaption class="polaroid-caption">${caption}</figcaption>
+            </figure>
+            <div class="polaroid-tools">
+              <span>Drag to look around, or tap the arrows to keep exploring.</span>
+              <button class="ghost" data-act="home">↩ Back to ${claim ? "your “bar”" : "where you finished"}</button>
+            </div>
+          </div>
           <div class="route-card">
             <div class="route-map" data-slot="map"></div>
             <div class="route-legend">
@@ -572,6 +605,21 @@ export class Turn {
     reveal.classList.remove("hidden");
     this.o.root.querySelector(".turn")!.classList.add("results-mode");
 
+    // Where the photo starts: the claim if they made one, else where they stopped.
+    const home = {
+      panoId: claim?.panoId ?? this.endPanoId ?? loc.panoId,
+      pos: claim?.position ?? this.lastPos ?? loc.position,
+      pov: claim?.pov ?? this.pano?.getPov() ?? { heading: 0, pitch: 0 },
+      zoom: claim?.zoom ?? this.pano?.getZoom() ?? 1,
+    };
+    this.afterTrail = [home.pos];
+    this.home = home;
+    reveal.querySelector('[data-act="home"]')!.addEventListener("click", () => {
+      if (!this.pano) return;
+      this.afterTrail = [home.pos]; // a jump, not a walk
+      this.showView(home);
+    });
+
     // Move the live panorama into the polaroid, and the map into its box.
     reveal.querySelector('[data-slot="photo"]')!.appendChild(this.el.viewer);
     reveal.querySelector('[data-slot="map"]')!.appendChild(this.el.minimap);
@@ -579,24 +627,30 @@ export class Turn {
 
     const pano = this.pano;
     if (pano) {
-      // A still "photo": look around, but no walking and no controls.
-      pano.setOptions({ linksControl: false, clickToGo: false, zoomControl: false });
-      if (claim) {
-        if (pano.getPano() !== claim.panoId) {
-          // A new pano resets the view when it loads, so set it again after.
-          google.maps.event.addListenerOnce(pano, "pano_changed", () => {
-            pano.setPov(claim.pov);
-            pano.setZoom(claim.zoom);
-          });
-          pano.setPano(claim.panoId);
-        }
-        pano.setPov(claim.pov);
-        pano.setZoom(claim.zoom);
-      }
+      // The photo can be explored: look around and keep walking. The score's
+      // already in, so this is just for curiosity.
+      pano.setOptions({ linksControl: true, clickToGo: true, zoomControl: false });
+      if (claim) this.showView(home);
     }
     // Let the new layout settle, then resize both to their new boxes.
     requestAnimationFrame(this.onResize);
     window.addEventListener("resize", this.onResize);
+  }
+
+  /** Point the panorama at a saved view, even if it means changing panorama. */
+  private showView(v: { panoId: string; pov: google.maps.StreetViewPov; zoom: number }) {
+    const pano = this.pano!;
+    const apply = () => {
+      pano.setPov(v.pov);
+      pano.setZoom(v.zoom);
+    };
+    if (pano.getPano() !== v.panoId) {
+      // A new pano applies its own default view once it has loaded, which
+      // would undo ours, so set it again when it has.
+      google.maps.event.addListenerOnce(pano, "status_changed", apply);
+      pano.setPano(v.panoId);
+    }
+    apply();
   }
 
   private showLoading(msg: string, error = false) {

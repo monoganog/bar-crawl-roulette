@@ -1162,6 +1162,28 @@ table.lb {
   align-items: start;
 }
 
+.polaroid-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  min-width: 0;
+}
+
+.polaroid-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.polaroid-tools .ghost {
+  padding: 0.35rem 0.8rem;
+  font-size: 0.9rem;
+}
+
 .polaroid {
   margin: 0.4rem 0 0;
   padding: 14px 14px 0;
@@ -1324,7 +1346,7 @@ table.lb {
     grid-template-columns: 1fr;
     justify-items: center;
   }
-  .polaroid,
+  .polaroid-col,
   .route-card {
     width: 100%;
     max-width: 440px;

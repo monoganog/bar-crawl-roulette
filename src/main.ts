@@ -35,7 +35,6 @@ app.innerHTML = `
     </div>
     <div class="round-pill" id="roundPill"></div>
     <div class="top-actions">
-      <button class="ghost" id="lbBtn">Leaderboard <kbd>L</kbd></button>
       <button class="ghost danger" id="newBtn">New game</button>
     </div>
   </header>
@@ -51,7 +50,6 @@ app.innerHTML = `
 const main = document.querySelector<HTMLElement>("#screen")!;
 const lbModal = document.querySelector<HTMLElement>("#lbModal")!;
 
-document.querySelector("#lbBtn")!.addEventListener("click", toggleLeaderboard);
 document.querySelector("#lbClose")!.addEventListener("click", toggleLeaderboard);
 lbModal.addEventListener("click", (e) => e.target === lbModal && toggleLeaderboard());
 document.querySelector("#newBtn")!.addEventListener("click", () => {
@@ -109,7 +107,6 @@ function render() {
       ? `Round ${state.round} / ${state.settings.rounds}<span class="pill-diff"> · ${diff.emoji} ${diff.name}</span>`
       : "";
   pill.classList.toggle("hidden", state.phase !== "playing");
-  document.querySelector<HTMLElement>("#lbBtn")!.classList.toggle("hidden", state.phase === "setup");
   document.querySelector<HTMLElement>("#newBtn")!.classList.toggle("hidden", state.phase === "setup");
 
   if (state.phase === "setup") renderSetup();

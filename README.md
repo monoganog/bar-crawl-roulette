@@ -85,7 +85,7 @@ The final screen deals **4 award cards**, face down, and turns them over one at 
 
 They're worked out from each turn's data (times, metres walked versus the shortest route, steps, re-rolls, where you claimed a bar). An award only qualifies when someone actually earned it, and ties are shared. The 4 go to different people where possible. The draw is seeded from the night's results, so refreshing deals the same hand. If fewer than 4 qualify (a very short game), consolation awards fill the gaps. The rules live in `src/awards.ts`; change `AWARDS_SHOWN` to deal more or fewer.
 
-The leaderboard sits beside the wheel / turn order and opens anywhere with `L`. It shows wins, total time, best time and DNFs, per-round results, and the fastest time of the night (a bonus, not how you win). Everything is saved in `localStorage`, so a page refresh won't lose the game. **New game** clears the results but keeps the player list.
+The leaderboard sits beside the wheel / turn order (and `L` opens it as a pop-up anywhere). It shows wins, total time, best time and DNFs, per-round results, and the fastest time of the night (a bonus, not how you win). Everything is saved in `localStorage`, so a page refresh won't lose the game. **New game** clears the results but keeps the player list.
 
 ### Keyboard
 
@@ -151,7 +151,7 @@ The header shows which build is running, faintly under the logo: `v0.1.0 · buil
 
 ### Icon and link preview
 
-The site icon is `public/favicon.svg` (a roulette wheel with a pint). The PNG sizes next to it (`favicon-32.png`, `icon-192.png`, `icon-512.png`, and a square-cornered `apple-touch-icon.png`) were rendered from it with headless Chrome and resized with `sips`. The share preview used by Messenger, WhatsApp and so on is `public/og-image.png` (1200×630), rendered from `scripts/brand/og-image.html`:
+The browser-tab icon is `public/favicon.svg`: just the roulette wheel with a pint, on a transparent background so nothing shows round its edges on light or dark tab bars (`favicon-32.png` is the same at 32 px). The app icon, `public/app-icon.svg`, puts the wheel on a dark rounded square; the home-screen sizes (`icon-192.png`, `icon-512.png`, and a square-cornered `apple-touch-icon.png`) and the share preview are rendered from it with headless Chrome and resized with `sips`. The share preview used by Messenger, WhatsApp and so on is `public/og-image.png` (1200×630), rendered from `scripts/brand/og-image.html`:
 
 ```bash
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --hide-scrollbars \

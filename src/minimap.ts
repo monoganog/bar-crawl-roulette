@@ -83,6 +83,10 @@ interface RouteView {
   claim: LatLng | null;
   /** Bars close to the route; these get labels. */
   passed: Bar[];
+  /** Exploring after the turn: where they've wandered since, from where they stopped. */
+  extra: LatLng[];
+  /** Where the photo is now and which way it faces. */
+  me: { pos: LatLng; headingDeg: number } | null;
 }
 
 type View = FollowView | RouteView;
@@ -171,7 +175,13 @@ export class Minimap {
 
   /** Centre and scale that fit the whole walk, the start and the claim. */
   private routeFit(view: RouteView, w: number, h: number) {
-    const pts = [this.loc!.position, ...view.trail, ...(view.claim ? [view.claim] : [])];
+    const pts = [
+      this.loc!.position,
+      ...view.trail,
+      ...view.extra,
+      ...(view.claim ? [view.claim] : []),
+      ...(view.me ? [view.me.pos] : []),
+    ];
     const lats = pts.map((p) => p.lat);
     const lngs = pts.map((p) => p.lng);
     const centre = {
@@ -432,6 +442,31 @@ export class Minimap {
       ctx.restore();
     }
 
+    // Where they've wandered since the turn ended: a dashed line.
+    if (view.extra.length > 1) {
+      const q = view.extra.map(P);
+      ctx.save();
+      ctx.strokeStyle = "rgba(251, 247, 255, 0.75)";
+      ctx.lineWidth = 3;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.setLineDash([2, 7]);
+      ctx.beginPath();
+      q.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Which way the photo is facing, appearing with the end of the line.
+    const me = view.me ? P(view.me.pos) : null;
+    const meS = view.me ? pop(reachedAt(view.me.pos)) : 0;
+    if (me && meS > 0) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, meS);
+      this.cone(me.x, me.y, view.me!.headingDeg, 34 * Math.min(1, meS));
+      ctx.restore();
+    }
+
     if (view.claim && claimAt) {
       const s = pop(reachedAt(view.claim));
       if (s > 0) {
@@ -442,6 +477,10 @@ export class Minimap {
         ctx.restore();
       }
     }
+    // Wandered off from the claim: mark where the photo is now.
+    if (me && meS > 0 && (!claimAt || Math.hypot(me.x - claimAt.x, me.y - claimAt.y) > 8)) {
+      this.dot(me.x, me.y, C.label, 5);
+    }
     this.drawNorth(w);
 
     // Keep going until the line and the last pop-in have finished.
@@ -450,6 +489,19 @@ export class Minimap {
       cancelAnimationFrame(this.raf);
       this.raf = requestAnimationFrame(() => this.last?.mode === "route" && this.redrawRoute());
     }
+  }
+
+  /** A soft wedge showing which way someone's looking. */
+  private cone(x: number, y: number, headingDeg: number, r: number) {
+    const ctx = this.ctx;
+    const a = ((headingDeg - 90) * Math.PI) / 180;
+    const half = Math.PI / 5;
+    ctx.fillStyle = "rgba(255, 61, 127, 0.4)";
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.arc(x, y, r, a - half, a + half);
+    ctx.closePath();
+    ctx.fill();
   }
 
   private dot(x: number, y: number, fill: string, r = 6) {
