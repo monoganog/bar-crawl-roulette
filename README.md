@@ -149,6 +149,18 @@ npm run preview
 
 The header shows which build is running, faintly under the logo: `v0.1.0 · build 6 · a1b2c3d`. That's the `version` in `package.json` (bump it for milestones), the number of commits (goes up with every deploy), and the commit the site was built from. Under `npm run dev` it says `dev` instead of a build number.
 
+### Icon and link preview
+
+The site icon is `public/favicon.svg` (a roulette wheel with a pint). The PNG sizes next to it (`favicon-32.png`, `icon-192.png`, `icon-512.png`, and a square-cornered `apple-touch-icon.png`) were rendered from it with headless Chrome and resized with `sips`. The share preview used by Messenger, WhatsApp and so on is `public/og-image.png` (1200×630), rendered from `scripts/brand/og-image.html`:
+
+```bash
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --hide-scrollbars \
+  --force-device-scale-factor=1 --window-size=1200,630 \
+  --screenshot=public/og-image.png "file://$PWD/scripts/brand/og-image.html"
+```
+
+The title, description and image tags are in `index.html`. Chat apps cache previews; after changing them, re-scrape the URL in Facebook's [Sharing Debugger](https://developers.facebook.com/tools/debug/) to refresh Messenger.
+
 ## Publishing
 
 It's a static site, so any static host works. This repo includes a GitHub Pages workflow (`.github/workflows/deploy.yml`) that builds and deploys on every push to `main`.
