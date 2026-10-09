@@ -1263,10 +1263,6 @@ table.lb {
   vertical-align: 3px;
 }
 
-.key.bar {
-  background: var(--mint);
-}
-
 .key.faint {
   background: rgba(46, 230, 166, 0.45);
   width: 8px;

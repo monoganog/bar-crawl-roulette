@@ -562,7 +562,6 @@ export class Turn {
             <div class="route-map" data-slot="map"></div>
             <div class="route-legend">
               <span><i class="key trail"></i>your walk</span>
-              <span><i class="key bar"></i>bars you passed</span>
               <span><i class="key faint"></i>other bars</span>
               ${claim ? `<span><i class="key claim"></i>your “bar”</span>` : ""}
             </div>
