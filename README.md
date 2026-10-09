@@ -162,4 +162,4 @@ It's a static site, so any static host works. This repo includes a GitHub Pages 
 3. **Settings → Pages → Source:** GitHub Actions.
 4. For a custom domain, add a file `public/CNAME` containing just the domain (e.g. `barcrawlroulette.example`), set the domain under **Settings → Pages**, and point your DNS at GitHub as their docs describe. The site is built for the root of a domain; serving it from `username.github.io/repo-name/` instead would need `base` set in a Vite config.
 
-**Small print:** the setup screen asks once whether players are 18+, and carries a drink-responsibly note and the privacy and data credits. Bar data is © OpenStreetMap contributors under the ODbL; see [DATA-LICENSE.md](DATA-LICENSE.md). Check Google Maps Platform's terms and acceptable use policy yourself before launch; nothing here is legal advice.
+**Small print:** the setup screen carries an 18+ / drink-responsibly note and the privacy and data credits. Bar data is © OpenStreetMap contributors under the ODbL; see [DATA-LICENSE.md](DATA-LICENSE.md). Check Google Maps Platform's terms and acceptable use policy yourself before launch; nothing here is legal advice.

@@ -753,32 +753,6 @@ table.lb {
   color: inherit;
 }
 
-.age-card {
-  width: min(460px, 100%);
-  text-align: center;
-}
-
-.age-card p {
-  font-size: 1.15rem;
-  line-height: 1.5;
-}
-
-.age-emoji {
-  font-size: 3rem;
-}
-
-.age-actions {
-  display: flex;
-  justify-content: center;
-  gap: 0.8rem;
-  margin: 1.2rem 0 0.4rem;
-}
-
-.age-card .age-small {
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
 /* ---------- Turn ---------- */
 
 .turn {

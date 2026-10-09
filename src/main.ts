@@ -28,18 +28,6 @@ app.innerHTML = `
     </div>
   </header>
   <main id="screen"></main>
-  <div class="modal hidden" id="ageModal" role="dialog" aria-modal="true" aria-labelledby="ageTitle">
-    <div class="modal-card age-card">
-      <div class="age-emoji">🍺</div>
-      <h2 id="ageTitle">This is a drinking game</h2>
-      <p>Are you 18 or over, and of legal drinking age where you are?</p>
-      <div class="age-actions">
-        <button class="primary" id="ageYes">Yes, I'm 18+</button>
-        <button class="ghost" id="ageNo">No</button>
-      </div>
-      <p class="age-small">Drink responsibly. Water or soft drinks work just as well.</p>
-    </div>
-  </div>
   <div class="modal hidden" id="lbModal">
     <div class="modal-card">
       <button class="modal-close" id="lbClose" aria-label="Close">×</button>
@@ -66,8 +54,6 @@ window.addEventListener(
   (e) => {
     if (e.target instanceof HTMLInputElement) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
-    // Nothing happens behind the age check.
-    if (!ageModal.classList.contains("hidden")) return;
     const k = e.key.toLowerCase();
     if (!lbModal.classList.contains("hidden")) {
       if (k === "escape" || k === "l") {
@@ -484,28 +470,4 @@ function renderFinished() {
   });
 }
 
-// Ask once per browser before anything else.
-const AGE_KEY = "bar-crawl-roulette:age-ok";
-const ageModal = document.querySelector<HTMLElement>("#ageModal")!;
-let ageOk = false;
-try {
-  ageOk = localStorage.getItem(AGE_KEY) === "1";
-} catch {}
-if (ageOk) {
-  render();
-} else {
-  ageModal.classList.remove("hidden");
-  document.querySelector("#ageYes")!.addEventListener("click", () => {
-    try {
-      localStorage.setItem(AGE_KEY, "1");
-    } catch {}
-    ageModal.classList.add("hidden");
-    render();
-  });
-  document.querySelector("#ageNo")!.addEventListener("click", () => {
-    ageModal.querySelector(".modal-card")!.innerHTML = `
-      <div class="age-emoji">🧃</div>
-      <h2>Sorry, this one's for grown-ups</h2>
-      <p>Come back when you're 18.</p>`;
-  });
-}
+render();
