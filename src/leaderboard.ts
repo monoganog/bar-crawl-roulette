@@ -16,7 +16,7 @@ export function leaderboardHTML(s: GameState, { banner: showBanner = true } = {}
            <div class="fb-sub">Round ${fastest.round} · ${esc(fastest.city)}, ${esc(fastest.country)}</div>
          </div>
        </div>`
-    : `<div class="fastest-banner empty">No finishes yet. Somebody drink faster.</div>`;
+    : ""; // nothing to brag about yet
 
   const standingsRows = rows
     .map((r, i) => {
