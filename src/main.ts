@@ -10,6 +10,7 @@ import * as G from "./state";
 import { Turn } from "./turn";
 import { esc } from "./util";
 import { Wheel } from "./wheel";
+import { BEER_TOUR, tourBeer, tourCity } from "./tour";
 
 const API_KEY = (import.meta.env.VITE_GOOGLE_MAPS_KEY ?? "").trim();
 const VERSION = [
@@ -104,7 +105,9 @@ function render() {
   const diff = DIFFICULTIES[state.settings.difficulty ?? "normal"];
   pill.innerHTML =
     state.phase === "playing"
-      ? `Round ${state.round} / ${state.settings.rounds}<span class="pill-diff"> · ${diff.emoji} ${diff.name}</span>`
+      ? `Round ${state.round} / ${state.settings.rounds}<span class="pill-diff"> · ${
+          state.settings.tour ? `🍺 ${esc(tourCity(state)?.city ?? "")}` : `${diff.emoji} ${diff.name}`
+        }</span>`
       : "";
   pill.classList.toggle("hidden", state.phase !== "playing");
   document.querySelector<HTMLElement>("#newBtn")!.classList.toggle("hidden", state.phase === "setup");
@@ -131,6 +134,7 @@ function renderSetup() {
   let capMin = state.settings.timeCapSec / 60;
   let rounds = state.settings.rounds;
   let difficulty: Difficulty = state.settings.difficulty ?? "normal";
+  let tour = !!state.settings.tour;
 
   // On a phone, focusing the name box scrolls the page down to it and pops up
   // the keyboard before anyone has read the rules. Only do it with a mouse,
@@ -164,9 +168,14 @@ function renderSetup() {
             <input id="capInput" type="number" min="0.5" max="30" step="0.5" value="${capMin}" />
           </label>
           <label>Rounds
-            <input id="roundsInput" type="number" min="1" max="20" step="1" value="${rounds}" />
+            <input id="roundsInput" type="number" min="1" max="20" step="1" value="${tour ? BEER_TOUR.length : rounds}" ${tour ? "disabled" : ""} />
           </label>
         </div>
+        <label class="tour-toggle ${tour ? "on" : ""}">
+          <input type="checkbox" id="tourInput" ${tour ? "checked" : ""} />
+          <span class="tour-title">🍺 Beer tour</span>
+          <span class="tour-stops">${BEER_TOUR.map((t) => esc(t.city)).join(" · ")}</span>
+        </label>
         <fieldset class="difficulty">
           <legend>Difficulty</legend>
           ${(Object.keys(DIFFICULTIES) as Difficulty[])
@@ -227,14 +236,24 @@ function renderSetup() {
         main.querySelectorAll(".diff").forEach((l) => l.classList.toggle("on", l.contains(r)));
       }),
     );
+    main.querySelector<HTMLInputElement>("#tourInput")!.addEventListener("change", (e) => {
+      tour = (e.target as HTMLInputElement).checked;
+      draw();
+    });
     main.querySelector<HTMLInputElement>("#roundsInput")!.addEventListener("input", (e) => {
       rounds = Number((e.target as HTMLInputElement).value);
     });
     main.querySelector("#startBtn")!.addEventListener("click", () => {
       if (!(capMin >= 0.5 && capMin <= 30)) return void (err.textContent = "Time cap must be 0.5–30 minutes.");
-      if (!(Number.isInteger(rounds) && rounds >= 1 && rounds <= 20))
+      if (!tour && !(Number.isInteger(rounds) && rounds >= 1 && rounds <= 20))
         return void (err.textContent = "Rounds must be a whole number from 1 to 20.");
-      state = G.startGame({ players, timeCapSec: Math.round(capMin * 60), rounds, difficulty });
+      state = G.startGame({
+        players,
+        timeCapSec: Math.round(capMin * 60),
+        rounds: tour ? BEER_TOUR.length : rounds,
+        difficulty,
+        ...(tour ? { tour: BEER_TOUR.map((t) => t.city) } : {}),
+      });
       render();
     });
     fitSetup();
@@ -244,7 +263,7 @@ function renderSetup() {
   draw();
 }
 
-const fitSetup = () => fitToWindow(".setup-screen", ".rules", { min: 1, max: 1.6 });
+const fitSetup = () => fitToWindow(".setup-screen", ".rules", { min: 0.9, max: 1.6 });
 const fitFinished = () => fitToWindow(".finished", ".finished", { min: 0.7, max: 1.4 });
 
 /**
@@ -274,6 +293,7 @@ function renderWheel() {
   main.innerHTML = `
     <section class="wheel-screen">
       <div class="wheel-col">
+        ${state.settings.tour ? `<div class="tour-now">🍺 ${esc(tourCity(state)?.city ?? "")}: crack open ${esc(tourBeer(state))}</div>` : ""}
         ${
           next
             ? solo
@@ -371,7 +391,7 @@ function startPrefetch() {
   cancelPrefetch();
   if (!API_KEY) return;
   const abort = new AbortController();
-  const promise = findRandomLocation(API_KEY, { spec: currentSpec(), signal: abort.signal });
+  const promise = findRandomLocation(API_KEY, { spec: currentSpec(), onlyCity: tourCity(state), signal: abort.signal });
   promise.catch(() => {}); // the turn screen reports errors
   prefetch = { promise, abort };
 }
@@ -389,7 +409,8 @@ function cancelPrefetch() {
 
 function renderTurn(player: string) {
   const spec = currentSpec();
-  const search = prefetch?.promise ?? findRandomLocation(API_KEY, { spec });
+  const onlyCity = tourCity(state);
+  const search = prefetch?.promise ?? findRandomLocation(API_KEY, { spec, onlyCity });
   const abort = prefetch?.abort;
   prefetch = null;
 
@@ -400,6 +421,7 @@ function renderTurn(player: string) {
     round: state.round,
     capSec: state.settings.timeCapSec,
     drop: spec,
+    onlyCity,
     location: search,
     onFinish: (r) => {
       state = G.recordTurn(state, r);

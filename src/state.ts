@@ -6,6 +6,8 @@ export interface Settings {
   rounds: number;
   /** Missing in games saved before difficulty existed: treat as "normal". */
   difficulty?: Difficulty;
+  /** The beer tour: the city for each round, everyone in the same one. */
+  tour?: string[];
 }
 
 export interface TurnResult {

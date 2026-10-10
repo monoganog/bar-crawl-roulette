@@ -346,6 +346,8 @@ export async function findRandomLocation(
     spec: DropSpec;
     signal?: AbortSignal;
     city?: City;
+    /** Stay in this city, even if it takes a few goes (the beer tour). */
+    onlyCity?: City;
     onProgress?: (msg: string) => void;
     rand?: () => number;
   },
@@ -362,7 +364,7 @@ export async function findRandomLocation(
 
   for (let c = 0; c < MAX_CITIES; c++) {
     const pool = cities.filter((p) => !triedCities.has(p.city));
-    const city = c === 0 && opts.city ? opts.city : pick(pool.length ? pool : cities, rand);
+    const city = opts.onlyCity ?? (c === 0 && opts.city ? opts.city : pick(pool.length ? pool : cities, rand));
     triedCities.add(city.city);
     const bars = await loadBars(city.city);
     const seeds = gapPoints(city, bars, opts.spec.pathM, rand, MAX_SEED_ATTEMPTS);
@@ -394,7 +396,7 @@ export async function findRandomLocation(
   }
   if (authFailed) throw new GoogleAuthError("Google rejected the API key.");
   throw new Error(
-    `Couldn't find a good spot after ${attempts} attempts across ${MAX_CITIES} cities. ` +
+    `Couldn't find a good spot after ${attempts} attempts${opts.onlyCity ? ` in ${opts.onlyCity.city}` : ` across ${MAX_CITIES} cities`}. ` +
       `Try the re-roll button; if it keeps happening, Google's daily limit may have run out.`,
   );
 }

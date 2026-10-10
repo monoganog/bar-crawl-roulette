@@ -10,6 +10,7 @@ import {
 } from "./streetview";
 import { describeScripts, type DropSpec } from "./difficulty";
 import { nearestBar, type Bar } from "./bars";
+import type { City } from "./cities";
 import { Minimap } from "./minimap";
 import { speedUpTouchLook } from "./touchlook";
 import { formatTime, type TurnResult } from "./state";
@@ -38,6 +39,8 @@ export interface TurnOptions {
   capSec: number;
   /** Walk distance and allowed cities for this round, used again on re-roll. */
   drop: DropSpec;
+  /** The beer tour's city for this round: re-rolls stay in it. */
+  onlyCity?: City;
   /** A search that may already be under way (started during the spin or on "Up next"). */
   location: Promise<FoundLocation>;
   /** The turn is over. Record the result now so a refresh can't lose it. */
@@ -444,6 +447,7 @@ export class Turn {
     this.load(
       findRandomLocation(this.o.apiKey, {
         spec: this.o.drop,
+        onlyCity: this.o.onlyCity,
         signal: this.abort.signal,
         onProgress: (m) => this.showLoading(m),
       }),

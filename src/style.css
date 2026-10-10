@@ -428,6 +428,66 @@ input {
   background: #2a2008;
 }
 
+/* The beer tour: a toggle that looks like the difficulty cards. */
+.tour-toggle {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.7rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: 14px;
+  border: 2px solid var(--line);
+  background: var(--bg-2);
+  cursor: pointer;
+}
+
+.setup .tour-toggle input {
+  flex: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0;
+  accent-color: var(--amber);
+  align-self: center;
+  margin: 0;
+}
+
+.tour-toggle:has(input:focus-visible) {
+  outline: 3px solid var(--amber);
+  outline-offset: 3px;
+}
+
+.tour-toggle.on {
+  border-color: var(--amber);
+  background: #2a2008;
+}
+
+.tour-title {
+  font-weight: 800;
+}
+
+.tour-stops {
+  flex: 1;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.tour-now {
+  align-self: stretch;
+  text-align: center;
+  font-weight: 800;
+  font-size: 1.3rem;
+  padding: 0.6rem 1rem;
+  border-radius: 14px;
+  border: 2px solid var(--amber);
+  background: #2a2008;
+  color: var(--gold);
+}
+
+.settings input:disabled {
+  opacity: 0.6;
+}
+
 .diff-emoji {
   font-size: 1.8rem;
 }
@@ -624,6 +684,11 @@ input {
   letter-spacing: 0.15em;
   font-size: 0.8rem;
   color: var(--muted);
+}
+
+/* Lots of rounds: scroll the round table sideways rather than squash it. */
+.lb-by-round {
+  overflow-x: auto;
 }
 
 table.lb {
@@ -1948,11 +2013,6 @@ table.lb {
 
   .finished-lb h3 {
     margin-top: 0;
-  }
-
-  /* Lots of rounds: scroll the round table sideways rather than squash it. */
-  .finished-lb .lb-by-round {
-    overflow-x: auto;
   }
 
   .finished .primary.huge {

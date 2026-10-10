@@ -37,6 +37,7 @@ export const CITIES: City[] = [
   // English-speaking, abroad
   { city: "Dublin", country: "Ireland", lat: 53.3454, lng: -6.2644, script: "english" },
   { city: "New York", country: "United States", lat: 40.7265, lng: -73.9875, script: "english" },
+  { city: "Brooklyn", country: "United States", lat: 40.7163, lng: -73.9579, script: "english" },
   { city: "Chicago", country: "United States", lat: 41.8958, lng: -87.6346, script: "english" },
   { city: "San Francisco", country: "United States", lat: 37.7793, lng: -122.4192, script: "english" },
   { city: "Sydney", country: "Australia", lat: -33.8732, lng: 151.2069, script: "english" },
@@ -49,6 +50,8 @@ export const CITIES: City[] = [
   { city: "Paris", country: "France", lat: 48.8606, lng: 2.3522, script: "latin" },
   { city: "Prague", country: "Czechia", lat: 50.0835, lng: 14.4241, script: "latin" },
   { city: "Munich", country: "Germany", lat: 48.1374, lng: 11.5755, script: "latin" },
+  { city: "Brussels", country: "Belgium", lat: 50.8467, lng: 4.3525, script: "latin" },
+  { city: "Barcelona", country: "Spain", lat: 41.3833, lng: 2.1777, script: "latin" },
   // Another script entirely
   { city: "Tokyo", country: "Japan", lat: 35.6938, lng: 139.7034, script: "other" },
   { city: "Seoul", country: "South Korea", lat: 37.5563, lng: 126.922, script: "other" },
