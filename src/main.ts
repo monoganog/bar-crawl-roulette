@@ -140,6 +140,8 @@ function renderSetup() {
     main.innerHTML = `
       ${rulesHTML(capMin * 60)}
       <section class="setup">
+        <div class="setup-grid">
+        <div class="setup-players">
         <h1>Who's crawling tonight?</h1>
         ${
           API_KEY
@@ -158,6 +160,8 @@ function renderSetup() {
           <input id="nameInput" placeholder="Add a player…" maxlength="20" autocomplete="off" />
           <button class="secondary" type="submit">Add</button>
         </form>
+        </div>
+        <div class="setup-options">
         <div class="settings">
           <label>Time cap (minutes)
             <input id="capInput" type="number" min="0.5" max="30" step="0.5" value="${capMin}" />
@@ -180,6 +184,8 @@ function renderSetup() {
             })
             .join("")}
         </fieldset>
+        </div>
+        </div>
         <div class="setup-error" id="setupError"></div>
         <button class="primary huge" id="startBtn" ${players.length && API_KEY ? "" : "disabled"}>
           Let's go 🍻
@@ -245,12 +251,16 @@ function renderSetup() {
 function renderWheel() {
   const remaining = G.remainingThisRound(state);
   const next = G.nextWithoutSpin(state);
+  // Playing alone, there's no order to show: just whose go it is.
+  const solo = state.settings.players.length === 1;
   main.innerHTML = `
     <section class="wheel-screen">
       <div class="wheel-col">
         ${
           next
-            ? `<div class="order" id="order"></div>`
+            ? solo
+              ? ""
+              : `<div class="order" id="order"></div>`
             : `<div class="wheel-box"><canvas id="wheel"></canvas></div>`
         }
         <div class="wheel-cta" id="wheelCta">
@@ -299,7 +309,8 @@ function renderWheel() {
     picked = next;
     const order = G.turnOrder(state);
     const won = trophies(state, state.round - 1);
-    main.querySelector<HTMLElement>("#order")!.innerHTML = `
+    const orderBox = main.querySelector<HTMLElement>("#order");
+    if (orderBox) orderBox.innerHTML = `
       <div class="order-label">Round ${state.round} turn order</div>
       <ol class="order-list">
         ${order
@@ -311,7 +322,9 @@ function renderWheel() {
           .join("")}
       </ol>`;
     startPrefetch(); // no spin to hide the search behind, so start now
-    showPicked(state.round === 1 ? "Last one standing" : "Up next");
+    showPicked(
+      solo ? `Round ${state.round} of ${state.settings.rounds}` : state.round === 1 ? "Last one standing" : "Up next",
+    );
   } else {
     wheel = new Wheel(main.querySelector<HTMLCanvasElement>("#wheel")!, remaining);
     onResize = () => wheel!.resize();

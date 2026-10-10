@@ -297,6 +297,14 @@ main {
   gap: 1.4rem;
 }
 
+.setup-grid,
+.setup-players,
+.setup-options {
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+}
+
 .setup h1 {
   font-size: 3rem;
   margin: 0;
@@ -1943,6 +1951,130 @@ table.lb {
   }
 
   .results-actions .osm-credit {
+    margin-top: 0;
+  }
+}
+
+/* ---------- Setup on a desktop screen: everything on one page ---------- */
+
+@media (min-width: 761px) {
+  .rules {
+    padding-top: 1.4rem;
+  }
+
+  .rules h2 {
+    font-size: 1.9rem;
+    margin-bottom: 0.9rem;
+  }
+
+  /* Each step: icon beside its words, rather than above them. */
+  .rule {
+    flex-direction: row;
+    text-align: left;
+    gap: 0.8rem;
+    padding: 0.8rem 1rem 0.8rem 1.6rem;
+  }
+
+  .rule::before {
+    top: 0.45rem;
+    left: 0.6rem;
+    font-size: 0.8rem;
+  }
+
+  .rule-icon {
+    flex: none;
+    width: 48px;
+    height: 48px;
+  }
+
+  .rule p {
+    font-size: 1.05rem;
+  }
+
+  .rules-small {
+    margin-top: 0.7rem;
+    font-size: 0.95rem;
+  }
+
+  .setup {
+    max-width: 960px;
+    padding: 1.4rem 1.5rem 1.5rem;
+    gap: 0.9rem;
+  }
+
+  /* Players on the left, the options on the right. */
+  .setup-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2.5rem;
+    align-items: start;
+  }
+
+  .setup-players,
+  .setup-options {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-width: 0;
+  }
+
+  .setup h1 {
+    font-size: 2.3rem;
+  }
+
+  .diff {
+    padding: 0.6rem 0.5rem;
+  }
+
+  .diff-emoji {
+    font-size: 1.4rem;
+  }
+
+  .setup-error:empty {
+    display: none;
+  }
+}
+
+/* Short desktop windows (small laptops): tighten the vertical spacing. */
+@media (min-width: 761px) and (max-height: 780px) {
+  .rules {
+    padding-top: 0.8rem;
+  }
+
+  .rules h2 {
+    font-size: 1.6rem;
+    margin-bottom: 0.6rem;
+  }
+
+  .rule {
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
+  }
+
+  .rules-small {
+    margin-top: 0.45rem;
+  }
+
+  .setup {
+    padding-top: 0.9rem;
+    gap: 0.7rem;
+  }
+
+  .setup h1 {
+    font-size: 2rem;
+  }
+
+  .setup-players,
+  .setup-options {
+    gap: 0.75rem;
+  }
+
+  .setup .primary.huge {
+    font-size: 1.5rem;
+    padding: 0.45em 1.4em;
+  }
+
+  .small-print {
     margin-top: 0;
   }
 }
