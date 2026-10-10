@@ -11,6 +11,7 @@ import {
 import { describeScripts, type DropSpec } from "./difficulty";
 import { nearestBar, type Bar } from "./bars";
 import { Minimap } from "./minimap";
+import { speedUpTouchLook } from "./touchlook";
 import { formatTime, type TurnResult } from "./state";
 import { esc } from "./util";
 
@@ -84,6 +85,9 @@ export class Turn {
   private result: TurnResult | null = null;
   /** The panorama they were on when the turn ended, for the Maps link. */
   private endPanoId: string | null = null;
+  /** Which way they were facing when the turn ended. */
+  private endPov: google.maps.StreetViewPov | null = null;
+  private endZoom = 1;
   /** Exploring the results photo: where they've walked since the turn ended. */
   private afterTrail: LatLng[] = [];
   /** Where the results photo starts (the claim, or where they stopped). */
@@ -222,6 +226,11 @@ export class Turn {
       clickToGo: true,
       zoomControl: true,
     });
+    // Faster turning on phones; the viewer element moves into the results
+    // polaroid later, so this keeps working there too.
+    speedUpTouchLook(this.el.viewer, () => this.pano);
+    // Handy for poking at the panorama from the console while developing.
+    if (import.meta.env.DEV) (window as unknown as { __pano: unknown }).__pano = this.pano;
     this.pano.addListener("position_changed", () => this.onMove());
     this.pano.addListener("pov_changed", () => this.refresh());
     // A new panorama's arrows arrive after its position does.
@@ -448,6 +457,8 @@ export class Turn {
     const { city, panoId, nearestBar: startBar, barDistanceM, pathM, route, bars } = this.loc;
     const endPos = this.lastPos ?? this.loc.position;
     this.endPanoId = this.pano?.getPano() ?? this.loc.panoId;
+    this.endPov = this.pano ? { ...this.pano.getPov() } : null;
+    this.endZoom = this.pano?.getZoom() ?? 1;
     const result: TurnResult = {
       round: this.o.round,
       player: this.o.player,
@@ -527,11 +538,18 @@ export class Turn {
     }
 
     const player = esc(this.o.player);
-    const caption = claim
+    const captionText = claim
       ? `“That's a bar!” – ${player}, ${formatTime(claim.atMs)}`
       : r.timeMs === null
         ? `Where ${player} ran out of time`
         : `Where ${player} finished`;
+    // The caption opens this exact view in Google Maps, facing the same way.
+    const photoUrl = streetViewUrl(
+      claim?.panoId ?? this.endPanoId ?? loc.panoId,
+      claim?.pov ?? this.endPov,
+      claim?.zoom ?? this.endZoom,
+    );
+    const caption = `<a href="${photoUrl}" target="_blank" rel="noopener" title="Open this view in Google Maps">${captionText} <span class="caption-arrow">↗</span></a>`;
     const tile = (tone: string, label: string, value: string, sub: string) => `
       <div class="stat-tile ${tone}">
         <div class="stat-label">${label}</div>
@@ -596,7 +614,6 @@ export class Turn {
         </div>
         <div class="results-actions">
           <button class="primary huge" data-act="continue">Continue <kbd>Enter</kbd></button>
-          <a class="reveal-link" href="https://www.google.com/maps/@?api=1&map_action=pano&pano=${encodeURIComponent(this.endPanoId ?? loc.panoId)}" target="_blank" rel="noopener">open where you finished in Google Maps ↗</a>
         </div>
         <div class="osm-credit">Bar data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>
       </div>`;
@@ -664,4 +681,16 @@ function listNames(names: string[]): string {
   const more = names.length - shown.length;
   const head = shown.length > 1 ? `${shown.slice(0, -1).join(", ")} and ${shown[shown.length - 1]}` : shown[0] ?? "";
   return more > 0 ? `${shown.join(", ")} and ${more} more` : head;
+}
+
+/** A Google Maps link that opens a Street View panorama facing a given way. */
+function streetViewUrl(panoId: string, pov: google.maps.StreetViewPov | null, zoom: number): string {
+  const params = new URLSearchParams({ api: "1", map_action: "pano", pano: panoId });
+  if (pov) {
+    params.set("heading", String(Math.round(((pov.heading % 360) + 360) % 360)));
+    params.set("pitch", String(Math.round(Math.max(-90, Math.min(90, pov.pitch)))));
+  }
+  // Street View zoom 1 is a 90° field of view; each step halves it.
+  params.set("fov", String(Math.round(Math.max(10, Math.min(100, 180 / 2 ** zoom)))));
+  return `https://www.google.com/maps/@?${params.toString().replace(/&/g, "&amp;")}`;
 }

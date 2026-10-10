@@ -7,6 +7,8 @@ const METRES_PER_PX = 1.5;
 /** The route map shows at least this much ground, even for a short walk. */
 const ROUTE_MIN_SPAN_M = 260;
 const ROUTE_PADDING_PX = 72;
+/** How far out the route map can be zoomed: 3× wider than the fitted view. */
+const ROUTE_MAX_ZOOM_OUT = 3;
 /** The route draws itself on: a pause for the page to land, then the line. */
 const ROUTE_ANIM_DELAY_MS = 350;
 const ROUTE_ANIM_MIN_MS = 1200;
@@ -109,11 +111,18 @@ export class Minimap {
   /** The route animation's clock; set when the route view first appears. */
   private anim: { start: number; duration: number } | null = null;
   private raf = 0;
+  /** Route view only: 1 = fitted to the walk, up to ROUTE_MAX_ZOOM_OUT. */
+  private routeScale = 1;
+  private zoomButtons: { root: HTMLElement; zin: HTMLButtonElement; zout: HTMLButtonElement };
 
   constructor(private container: HTMLElement) {
     container.innerHTML = `
       <div class="minimap-tiles"></div>
       <canvas class="minimap-overlay"></canvas>
+      <div class="minimap-zoom hidden">
+        <button type="button" data-zoom="in" aria-label="Zoom in">+</button>
+        <button type="button" data-zoom="out" aria-label="Zoom out">−</button>
+      </div>
       <div class="minimap-attr hidden">
         © <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a>
         <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a>
@@ -123,6 +132,54 @@ export class Minimap {
     this.overlay = container.querySelector(".minimap-overlay")!;
     this.attribution = container.querySelector(".minimap-attr")!;
     this.ctx = this.overlay.getContext("2d")!;
+
+    // The route map can zoom out (not in past the fit, and no panning):
+    // buttons, a trackpad or touch pinch, or Ctrl + scroll.
+    const root = container.querySelector<HTMLElement>(".minimap-zoom")!;
+    this.zoomButtons = {
+      root,
+      zin: root.querySelector('[data-zoom="in"]')!,
+      zout: root.querySelector('[data-zoom="out"]')!,
+    };
+    this.zoomButtons.zin.addEventListener("click", () => this.setRouteScale(this.routeScale / 1.5));
+    this.zoomButtons.zout.addEventListener("click", () => this.setRouteScale(this.routeScale * 1.5));
+    container.addEventListener(
+      "wheel",
+      (e) => {
+        if (this.last?.mode !== "route") return;
+        // Plain scrolling scrolls the page. A trackpad pinch (which browsers
+        // report as wheel + Ctrl) or Ctrl + scroll zooms the map.
+        if (!e.ctrlKey) return;
+        const next = clampScale(this.routeScale * Math.exp(e.deltaY * 0.01));
+        // At either limit, let the page scroll as normal.
+        if (next === this.routeScale) return;
+        e.preventDefault();
+        this.setRouteScale(next);
+      },
+      { passive: false },
+    );
+    let pinch: { d0: number; s0: number } | null = null;
+    const gap = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    container.addEventListener("touchstart", (e) => {
+      if (this.last?.mode === "route" && e.touches.length === 2) pinch = { d0: gap(e.touches), s0: this.routeScale };
+    });
+    container.addEventListener(
+      "touchmove",
+      (e) => {
+        if (!pinch || e.touches.length !== 2) return;
+        e.preventDefault();
+        this.setRouteScale(pinch.s0 * (pinch.d0 / gap(e.touches)));
+      },
+      { passive: false },
+    );
+    container.addEventListener("touchend", () => (pinch = null));
+  }
+
+  private setRouteScale(scale: number) {
+    const next = clampScale(scale);
+    if (next === this.routeScale) return;
+    this.routeScale = next;
+    if (this.last) this.draw(this.last);
   }
 
   /** A new drop (first turn or a re-roll). */
@@ -146,6 +203,11 @@ export class Minimap {
     const h = this.container.clientHeight;
     if (!w || !h) return; // hidden: nothing to draw yet
     this.sizeOverlay(w, h);
+    const route = view.mode === "route";
+    this.container.classList.toggle("zoomable", route);
+    this.zoomButtons.root.classList.toggle("hidden", !route);
+    this.zoomButtons.zin.disabled = this.routeScale <= 1;
+    this.zoomButtons.zout.disabled = this.routeScale >= ROUTE_MAX_ZOOM_OUT;
     const { centre, mPerPx } =
       view.mode === "follow" ? { centre: view.me, mPerPx: METRES_PER_PX } : this.routeFit(view, w, h);
     if (this.mapState === "none") this.startMap(centre);
@@ -191,8 +253,8 @@ export class Minimap {
     const k = Math.cos((centre.lat * Math.PI) / 180);
     const spanX = Math.max((Math.max(...lngs) - Math.min(...lngs)) * 111_320 * k, ROUTE_MIN_SPAN_M);
     const spanY = Math.max((Math.max(...lats) - Math.min(...lats)) * 110_540, ROUTE_MIN_SPAN_M);
-    const mPerPx = Math.max(spanX / (w - ROUTE_PADDING_PX * 2), spanY / (h - ROUTE_PADDING_PX * 2));
-    return { centre, mPerPx };
+    const fit = Math.max(spanX / (w - ROUTE_PADDING_PX * 2), spanY / (h - ROUTE_PADDING_PX * 2));
+    return { centre, mPerPx: fit * this.routeScale };
   }
 
   /** Load MapLibre and the tiles on first use; fall back quietly on failure. */
@@ -569,4 +631,8 @@ function pointAt(pts: { x: number; y: number }[], along: number[], dist: number)
     }
   }
   return pts[pts.length - 1];
+}
+
+function clampScale(s: number): number {
+  return Math.min(ROUTE_MAX_ZOOM_OUT, Math.max(1, s));
 }
