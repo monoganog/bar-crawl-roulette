@@ -237,9 +237,28 @@ function renderSetup() {
       state = G.startGame({ players, timeCapSec: Math.round(capMin * 60), rounds, difficulty });
       render();
     });
+    fitSetup();
   };
-  setScreen({});
+  window.addEventListener("resize", fitSetup);
+  setScreen({ destroy: () => window.removeEventListener("resize", fitSetup) });
   draw();
+}
+
+/**
+ * On a laptop or monitor, scale the setup screen up so it fills the window
+ * instead of leaving a gap at the bottom. Same layout, just bigger, and never
+ * wider than the window. Never shrinks it: on a short window it scrolls.
+ */
+function fitSetup() {
+  const el = main.querySelector<HTMLElement>(".setup-screen");
+  if (!el) return;
+  el.style.zoom = "";
+  if (!window.matchMedia("(min-width: 761px)").matches) return;
+  const rules = el.querySelector<HTMLElement>(".rules")!;
+  const byHeight = main.clientHeight / el.offsetHeight;
+  const byWidth = main.clientWidth / rules.offsetWidth;
+  const zoom = Math.min(byHeight, byWidth, 1.6);
+  if (zoom > 1.01) el.style.zoom = String(Math.floor(zoom * 100) / 100);
 }
 
 // ---------- Wheel ----------
