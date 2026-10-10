@@ -6,7 +6,12 @@ import type { GameState } from "./state";
  * so you can crack them open together.
  */
 export const BEER_TOUR: { city: string; beer: string }[] = [
+  // UK first
   { city: "London", beer: "your London beer" },
+  { city: "Leeds", beer: "your Leeds beer" },
+  { city: "Newcastle", beer: "your Newcastle beer" },
+  { city: "Edinburgh", beer: "your Scottish beer" },
+  // Then abroad
   { city: "Chicago", beer: "your American beer" },
   { city: "Munich", beer: "your Munich beer" },
   { city: "Brussels", beer: "your Belgian beer" },
@@ -15,9 +20,6 @@ export const BEER_TOUR: { city: string; beer: string }[] = [
   { city: "Brooklyn", beer: "your Brooklyn beer" },
   { city: "Tokyo", beer: "your Japanese beer" },
   { city: "Barcelona", beer: "your Spanish beer" },
-  { city: "Leeds", beer: "your Leeds beer" },
-  { city: "Newcastle", beer: "your Newcastle beer" },
-  { city: "Edinburgh", beer: "your Scottish beer" },
 ];
 
 /** This round's city on the beer tour, or undefined for a normal game. */
