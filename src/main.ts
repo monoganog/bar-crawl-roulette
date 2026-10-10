@@ -138,6 +138,7 @@ function renderSetup() {
   let typing = window.matchMedia("(pointer: fine)").matches;
   const draw = () => {
     main.innerHTML = `
+      <div class="setup-screen">
       ${rulesHTML(capMin * 60)}
       <section class="setup">
         <h1>Who's crawling tonight?</h1>
@@ -185,14 +186,15 @@ function renderSetup() {
           Let's go 🍻
         </button>
         <p class="small-print">
-          18+ only. Drink responsibly: know your limits, and water or soft drinks work just as well.
-          Uses Google Street View (<a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's privacy policy</a>
-          and <a href="https://maps.google.com/help/terms_maps/" target="_blank" rel="noopener">terms</a> apply),
-          map tiles from <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a>
-          and bar data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.
-          Your game is saved only in this browser.
+          18+ only · Drink responsibly ·
+          Imagery © Google (<a href="https://policies.google.com/privacy" target="_blank" rel="noopener">privacy</a> ·
+          <a href="https://maps.google.com/help/terms_maps/" target="_blank" rel="noopener">terms</a>) ·
+          Maps: <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> &amp;
+          © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> ·
+          Saved in this browser only
         </p>
-      </section>`;
+      </section>
+      </div>`;
 
     const input = main.querySelector<HTMLInputElement>("#nameInput")!;
     const err = main.querySelector<HTMLElement>("#setupError")!;

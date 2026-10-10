@@ -29,7 +29,7 @@ function icon(name: keyof typeof ICONS) {
 export function rulesHTML(capSec: number): string {
   return `
     <section class="rules" aria-labelledby="rulesTitle">
-      <h2 id="rulesTitle">The goal is simple</h2>
+      <h2 id="rulesTitle">Rules</h2>
       <ol class="rule-steps">
         <li class="rule pink">
           ${icon("drop")}
