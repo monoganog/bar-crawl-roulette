@@ -300,6 +300,7 @@ main {
 .setup h1 {
   font-size: 2.4rem;
   margin: 0;
+  text-align: center;
   letter-spacing: -0.03em;
 }
 
@@ -1988,7 +1989,7 @@ table.lb {
 
   .setup {
     /* A clear break between the rules and the setup. */
-    padding: 1.9rem 1.5rem 1rem;
+    padding: 2.6rem 1.5rem 0.5rem;
     gap: 0.7rem;
   }
 
