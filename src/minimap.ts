@@ -301,7 +301,8 @@ export class Minimap {
     this.mapState = "failed";
     this.map?.remove();
     this.map = null;
-    this.attribution.classList.add("hidden");
+    // No tiles, but the bars and the route are still OpenStreetMap data.
+    this.attribution.classList.remove("hidden");
     if (this.last) this.draw(this.last);
   }
 

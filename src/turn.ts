@@ -610,7 +610,6 @@ export class Turn {
         </div>
         <div class="results-actions">
           <button class="primary huge" data-act="continue">Continue <kbd>Enter</kbd></button>
-          <div class="osm-credit">Bar data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>
         </div>
       </div>`;
     reveal.querySelector('[data-act="continue"]')!.addEventListener("click", () => this.o.onContinue());
