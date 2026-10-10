@@ -1165,20 +1165,7 @@ table.lb {
   min-width: 0;
 }
 
-.polaroid-tools {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem 1rem;
-  color: var(--muted);
-  font-size: 0.9rem;
-}
 
-.polaroid-tools .ghost {
-  padding: 0.35rem 0.8rem;
-  font-size: 0.9rem;
-}
 
 .polaroid {
   margin: 0.4rem 0 0;
@@ -1862,5 +1849,100 @@ table.lb {
     min-width: 0;
     max-width: 70%;
     font-size: 11px;
+  }
+}
+
+/* ---------- Results on a desktop screen: everything on one page ---------- */
+
+@media (min-width: 761px) {
+  .reveal.results {
+    padding: 1rem 1.5rem 1rem;
+  }
+
+  .results-page {
+    gap: 0.75rem;
+    /* The photo and the map are squares sized to what the window has left
+       once the header, stats and button are accounted for. */
+    --sq: max(220px, min(520px, calc((min(1080px, 100vw - 48px) - 2.5rem) / 2 - 30px), calc(100dvh - 450px)));
+  }
+
+  .results-head {
+    gap: 0.2rem 1rem;
+  }
+
+  .results-time {
+    font-size: 2.4rem;
+  }
+
+  .results-where {
+    font-size: 1.2rem;
+  }
+
+  .results-where strong {
+    font-size: 1.6rem;
+  }
+
+  .results-grid {
+    grid-template-columns: auto auto;
+    justify-content: center;
+    gap: 2.5rem;
+  }
+
+  .polaroid {
+    margin: 0.3rem 0 0;
+    padding: 12px 12px 0;
+  }
+
+  .polaroid-photo {
+    width: var(--sq);
+    height: var(--sq);
+    aspect-ratio: auto;
+  }
+
+  .polaroid-caption {
+    max-width: var(--sq);
+    font-size: 1.6rem;
+    padding: 0.45rem 0.3rem 0.7rem;
+  }
+
+  .route-card {
+    width: var(--sq);
+    gap: 0.4rem;
+  }
+
+  .route-map {
+    width: var(--sq);
+    height: var(--sq);
+    aspect-ratio: auto;
+  }
+
+  .results-evidence {
+    font-size: 1rem;
+    text-align: center;
+  }
+
+  .stat-tile {
+    padding: 0.65rem 0.9rem 0.75rem;
+  }
+
+  .stat-value {
+    font-size: 1.8rem;
+  }
+
+  .stat-sub {
+    font-size: 0.85rem;
+  }
+
+  .results-actions {
+    justify-content: space-between;
+  }
+
+  .results-actions .primary.huge {
+    font-size: 1.4rem;
+    padding: 0.5em 1.4em;
+  }
+
+  .results-actions .osm-credit {
+    margin-top: 0;
   }
 }

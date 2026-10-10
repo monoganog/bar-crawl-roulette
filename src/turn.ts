@@ -571,9 +571,6 @@ export class Turn {
               <div class="polaroid-photo" data-slot="photo"></div>
               <figcaption class="polaroid-caption">${caption}</figcaption>
             </figure>
-            <div class="polaroid-tools">
-              <button class="ghost" data-act="home">↩ Back to ${claim ? "your “bar”" : "where you finished"}</button>
-            </div>
           </div>
           <div class="route-card">
             <div class="route-map" data-slot="map"></div>
@@ -613,8 +610,8 @@ export class Turn {
         </div>
         <div class="results-actions">
           <button class="primary huge" data-act="continue">Continue <kbd>Enter</kbd></button>
+          <div class="osm-credit">Bar data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>
         </div>
-        <div class="osm-credit">Bar data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>
       </div>`;
     reveal.querySelector('[data-act="continue"]')!.addEventListener("click", () => this.o.onContinue());
     reveal.classList.remove("hidden");
@@ -629,11 +626,6 @@ export class Turn {
     };
     this.afterTrail = [home.pos];
     this.home = home;
-    reveal.querySelector('[data-act="home"]')!.addEventListener("click", () => {
-      if (!this.pano) return;
-      this.afterTrail = [home.pos]; // a jump, not a walk
-      this.showView(home);
-    });
 
     // Move the live panorama into the polaroid, and the map into its box.
     reveal.querySelector('[data-slot="photo"]')!.appendChild(this.el.viewer);
