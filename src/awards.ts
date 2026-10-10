@@ -8,6 +8,8 @@ export interface Award {
   winners: string[];
   /** The number behind it, e.g. "walked 3.4× the shortest route". */
   stat: string;
+  /** Always handed out (and revealed last), not left to the shuffle. */
+  always?: boolean;
 }
 
 const m = (metres: number) => `${Math.round(metres)} m`;
@@ -61,7 +63,13 @@ export function computeAwards(s: GameState): Award[] {
   const ice = bestTurn(s.results, (r) => r.timeMs, "min");
   if (ice)
     add(
-      { emoji: "🧊", title: "Ice Cold", blurb: "Fastest turn of the night", stat: `${secs(ice.value)} in ${ice.turn.city}` },
+      {
+        emoji: "🧊",
+        title: "Fastest of the Night",
+        blurb: "Quickest bar and drink of the crawl",
+        stat: `${secs(ice.value)} · round ${ice.turn.round} in ${ice.turn.city}`,
+        always: true,
+      },
       [ice.turn.player],
     );
 
@@ -241,19 +249,22 @@ function pickAwards(s: GameState, pool: Award[]): Award[] {
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
 
+  // The fastest turn always gets an award; the shuffle deals the rest.
+  const always = shuffled.filter((a) => a.always);
   const picked: Award[] = [];
-  const awarded = new Set<string>();
+  const awarded = new Set<string>(always.flatMap((a) => a.winners));
+  const slots = AWARDS_SHOWN - always.length;
   // First pass: only awards for people who don't have one yet.
   for (const a of shuffled) {
-    if (picked.length === AWARDS_SHOWN) break;
-    if (a.winners.some((w) => awarded.has(w))) continue;
+    if (picked.length === slots) break;
+    if (a.always || a.winners.some((w) => awarded.has(w))) continue;
     picked.push(a);
     a.winners.forEach((w) => awarded.add(w));
   }
   // Second pass: fill any gaps with whatever's left.
   for (const a of shuffled) {
-    if (picked.length === AWARDS_SHOWN) break;
-    if (!picked.includes(a)) picked.push(a);
+    if (picked.length === slots) break;
+    if (!a.always && !picked.includes(a)) picked.push(a);
   }
 
   // Short game, not enough qualified: top up with consolation awards,
@@ -265,7 +276,7 @@ function pickAwards(s: GameState, pool: Award[]): Award[] {
     { emoji: "🧢", title: "Designated Navigator", blurb: "Next time, surely" },
   ];
   const players = [...s.settings.players].sort((a, b) => Number(awarded.has(a)) - Number(awarded.has(b)));
-  for (let i = 0; picked.length < AWARDS_SHOWN && i < Math.min(players.length, consolations.length); i++) {
+  for (let i = 0; picked.length < slots && i < Math.min(players.length, consolations.length); i++) {
     const p = players[i];
     const mine = s.results.filter((r) => r.player === p);
     const walked = sum(mine.map((r) => r.walkedM ?? 0));
@@ -273,7 +284,8 @@ function pickAwards(s: GameState, pool: Award[]): Award[] {
     const stat = walked ? `${m(walked)} walked across ${cities.join(", ")}` : cities.length ? `visited ${cities.join(", ")}` : "turned up";
     picked.push({ ...consolations[i], winners: [p], stat });
   }
-  return picked;
+  // Saved for last: the big one.
+  return [...picked, ...always];
 }
 
 /** Small deterministic PRNG (mulberry32) seeded from a string. */

@@ -244,21 +244,24 @@ function renderSetup() {
   draw();
 }
 
+const fitSetup = () => fitToWindow(".setup-screen", ".rules", { min: 1, max: 1.6 });
+const fitFinished = () => fitToWindow(".finished", ".finished", { min: 0.7, max: 1.4 });
+
 /**
- * On a laptop or monitor, scale the setup screen up so it fills the window
- * instead of leaving a gap at the bottom. Same layout, just bigger, and never
- * wider than the window. Never shrinks it: on a short window it scrolls.
+ * On a laptop or monitor, scale a screen so it exactly fills the window:
+ * bigger to fill a big screen, smaller (down to `min`) so a crowded one still
+ * fits. Same layout either way, and never wider than the window (measured on
+ * `widest`). Below `min` it scrolls.
  */
-function fitSetup() {
-  const el = main.querySelector<HTMLElement>(".setup-screen");
+function fitToWindow(selector: string, widest: string, { min, max }: { min: number; max: number }) {
+  const el = main.querySelector<HTMLElement>(selector);
   if (!el) return;
   el.style.zoom = "";
   if (!window.matchMedia("(min-width: 761px)").matches) return;
-  const rules = el.querySelector<HTMLElement>(".rules")!;
   const byHeight = main.clientHeight / el.offsetHeight;
-  const byWidth = main.clientWidth / rules.offsetWidth;
-  const zoom = Math.min(byHeight, byWidth, 1.6);
-  if (zoom > 1.01) el.style.zoom = String(Math.floor(zoom * 100) / 100);
+  const byWidth = main.clientWidth / (el.matches(widest) ? el : el.querySelector<HTMLElement>(widest)!).offsetWidth;
+  const zoom = Math.max(min, Math.min(byHeight, byWidth, max));
+  if (Math.abs(zoom - 1) > 0.01) el.style.zoom = String(Math.floor(zoom * 100) / 100);
 }
 
 // ---------- Wheel ----------
@@ -501,7 +504,7 @@ function renderFinished() {
           )
           .join("")}
       </ol>
-      <div class="finished-lb">${leaderboardHTML(state)}</div>
+      <div class="finished-lb">${leaderboardHTML(state, { banner: false })}</div>
       <button class="primary huge" id="againBtn">New game</button>
     </section>`;
 
@@ -536,8 +539,13 @@ function renderFinished() {
       if (!e.repeat) revealNext();
       return true;
     },
-    destroy: () => window.clearInterval(timer),
+    destroy: () => {
+      window.clearInterval(timer);
+      window.removeEventListener("resize", fitFinished);
+    },
   });
+  fitFinished();
+  window.addEventListener("resize", fitFinished);
 }
 
 render();

@@ -1,7 +1,8 @@
 import { fastestOfNight, formatTime, roundWinner, standings, type GameState } from "./state";
 import { esc } from "./util";
 
-export function leaderboardHTML(s: GameState): string {
+/** `banner: false` leaves out "Fastest of the night" (the final screen has an award for it). */
+export function leaderboardHTML(s: GameState, { banner: showBanner = true } = {}): string {
   const fastest = fastestOfNight(s);
   const rows = standings(s);
   const rounds = Array.from({ length: s.settings.rounds }, (_, i) => i + 1);
@@ -55,16 +56,20 @@ export function leaderboardHTML(s: GameState): string {
     .join("");
 
   return `
-    ${banner}
-    <h3>Standings</h3>
-    <p class="lb-rule">Most rounds won. Ties go to the lowest total time (DNF counts as the cap).</p>
-    <table class="lb">
-      <thead><tr><th>#</th><th>Player</th><th class="num">Wins</th><th class="num" title="Completed rounds added up; a DNF counts as the time cap">Total</th><th class="num">Best</th><th class="num">DNF</th></tr></thead>
-      <tbody>${standingsRows}</tbody>
-    </table>
-    <h3>By round</h3>
-    <table class="lb rounds">
-      <thead><tr><th>Player</th>${rounds.map((r) => `<th class="num ${r === s.round && s.phase === "playing" ? "current" : ""}">R${r}</th>`).join("")}</tr></thead>
-      <tbody>${roundRows}</tbody>
-    </table>`;
+    ${showBanner ? banner : ""}
+    <div class="lb-standings">
+      <h3>Standings</h3>
+      <p class="lb-rule">Most rounds won. Ties go to the lowest total time (DNF counts as the cap).</p>
+      <table class="lb">
+        <thead><tr><th>#</th><th>Player</th><th class="num">Wins</th><th class="num" title="Completed rounds added up; a DNF counts as the time cap">Total</th><th class="num">Best</th><th class="num">DNF</th></tr></thead>
+        <tbody>${standingsRows}</tbody>
+      </table>
+    </div>
+    <div class="lb-by-round">
+      <h3>By round</h3>
+      <table class="lb rounds">
+        <thead><tr><th>Player</th>${rounds.map((r) => `<th class="num ${r === s.round && s.phase === "playing" ? "current" : ""}">R${r}</th>`).join("")}</tr></thead>
+        <tbody>${roundRows}</tbody>
+      </table>
+    </div>`;
 }

@@ -1928,6 +1928,45 @@ table.lb {
 
 }
 
+/* ---------- Final screen on a laptop: both tables side by side, no scrolling ---------- */
+@media (min-width: 761px) {
+  .finished {
+    padding: 1.2rem 1.5rem 1rem;
+    gap: 1rem;
+  }
+
+  .champ-name {
+    font-size: 3.4rem;
+    line-height: 1.1;
+  }
+
+  .award {
+    height: 175px;
+  }
+
+  .finished-lb {
+    display: grid;
+    /* The round table needs more room than the standings. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: 2rem;
+    padding: 1.1rem 1.4rem;
+  }
+
+  .finished-lb h3 {
+    margin-top: 0;
+  }
+
+  /* Lots of rounds: scroll the round table sideways rather than squash it. */
+  .finished-lb .lb-by-round {
+    overflow-x: auto;
+  }
+
+  .finished .primary.huge {
+    font-size: 1.55rem;
+    padding: 0.5em 1.5em;
+  }
+}
+
 /* The setup screen starts just under the header. */
 .setup-screen {
   display: flex;
