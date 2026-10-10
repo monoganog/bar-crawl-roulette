@@ -572,7 +572,6 @@ export class Turn {
               <figcaption class="polaroid-caption">${caption}</figcaption>
             </figure>
             <div class="polaroid-tools">
-              <span>Drag to look around, or tap the arrows to keep exploring.</span>
               <button class="ghost" data-act="home">↩ Back to ${claim ? "your “bar”" : "where you finished"}</button>
             </div>
           </div>
