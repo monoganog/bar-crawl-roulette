@@ -1934,8 +1934,14 @@ table.lb {
     font-size: 0.85rem;
   }
 
+  /* Continue in the middle, the credit tucked away on the right. */
   .results-actions {
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+  }
+
+  .results-actions .primary.huge {
+    grid-column: 2;
   }
 
   .results-actions .primary.huge {
@@ -1944,6 +1950,9 @@ table.lb {
   }
 
   .results-actions .osm-credit {
+    grid-column: 3;
+    justify-self: end;
+    text-align: right;
     margin-top: 0;
   }
 }
