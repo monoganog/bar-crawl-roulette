@@ -533,8 +533,8 @@ export class Turn {
           : d <= 60
             ? `🍺 Nearest bar on our map: ${name}, ${d} m away`
             : n
-              ? `🧐 Nothing on our map within 60 m (nearest: ${name}, ${d} m). Local knowledge, or a lie?`
-              : `🧐 No bars on our map round here. Local knowledge, or a lie?`;
+              ? `🧐 Nothing on our map within 60 m (nearest: ${name}, ${d} m). Local knowledge, or wishful thinking?`
+              : `🧐 No bars on our map round here. Local knowledge, or wishful thinking?`;
     }
 
     const player = esc(this.o.player);
