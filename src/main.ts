@@ -140,8 +140,6 @@ function renderSetup() {
     main.innerHTML = `
       ${rulesHTML(capMin * 60)}
       <section class="setup">
-        <div class="setup-grid">
-        <div class="setup-players">
         <h1>Who's crawling tonight?</h1>
         ${
           API_KEY
@@ -160,8 +158,6 @@ function renderSetup() {
           <input id="nameInput" placeholder="Add a player…" maxlength="20" autocomplete="off" />
           <button class="secondary" type="submit">Add</button>
         </form>
-        </div>
-        <div class="setup-options">
         <div class="settings">
           <label>Time cap (minutes)
             <input id="capInput" type="number" min="0.5" max="30" step="0.5" value="${capMin}" />
@@ -184,8 +180,6 @@ function renderSetup() {
             })
             .join("")}
         </fieldset>
-        </div>
-        </div>
         <div class="setup-error" id="setupError"></div>
         <button class="primary huge" id="startBtn" ${players.length && API_KEY ? "" : "disabled"}>
           Let's go 🍻
